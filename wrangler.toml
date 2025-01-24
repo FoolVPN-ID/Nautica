@@ -1,0 +1,9 @@
+name = "nautica"
+main = "_worker.js"
+compatibility_date = "2023-08-23"
+
+[unsafe.metadata.observability]
+enabled = true
+
+[observability.logs]
+enabled = true
