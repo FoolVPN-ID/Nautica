@@ -1,6 +1,18 @@
 name = "nautica"
 main = "_worker.js"
 compatibility_date = "2023-08-23"
+[[routes]]
+pattern = "vip.kuncung.eu.org"
+custom_domain = true
+[[routes]]
+pattern = "premium.vip.kuncung.eu.org"
+custom_domain = true
+[[routes]]
+pattern = "app.gopay.co.id.vip.kuncung.eu.org"
+custom_domain = true
+[[routes]]
+pattern = "app-stg.gopay.co.id.vip.kuncung.eu.org"
+custom_domain = true
 
 [unsafe.metadata.observability]
 enabled = true
