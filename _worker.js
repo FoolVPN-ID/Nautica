@@ -3,18 +3,18 @@ import { connect } from "cloudflare:sockets";
 // import { Buffer } from "node:buffer";
 
 // Variables
-const rootDomain = "foolvpn.me"; // Ganti dengan domain utama kalian
-const serviceName = "nautica"; // Ganti dengan nama workers kalian
-const apiKey = ""; // Ganti dengan Global API key kalian (https://dash.cloudflare.com/profile/api-tokens)
-const apiEmail = ""; // Ganti dengan email yang kalian gunakan
-const accountID = ""; // Ganti dengan Account ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
-const zoneID = ""; // Ganti dengan Zone ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
-let isApiReady = false;
+const rootDomain = "sendalcapit.my.id"; // Ganti dengan domain utama kalian
+const serviceName = "fattah"; // Ganti dengan nama workers kalian
+const apiKey = "HFmJ8OIa-VV4TMYQqPNi-A4hmmFSmbDZjrHtuS8t"; // Ganti dengan Global API key kalian (https://dash.cloudflare.com/profile/api-tokens)
+const apiEmail = "linalaela37@gmail.com"; // Ganti dengan email yang kalian gunakan
+const accountID = "fca7d9cedea22f83dd90efb5f1e0be52"; // Ganti dengan Account ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
+const zoneID = "9e1aaedf0973cd89c6365c1a27a00ac5"; // Ganti dengan Zone ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
+let isApiReady = true;
 let proxyIP = "";
 let cachedProxyList = [];
 
 // Constant
-const APP_DOMAIN = `${serviceName}.${rootDomain}`;
+const APP_DOMAIN = `${fattah}.${sendalcapit.my.id}`;
 const PORTS = [443, 80];
 const PROTOCOLS = [reverse("najort"), reverse("sselv"), reverse("ss")];
 const KV_PROXY_URL = "https://raw.githubusercontent.com/FoolVPN-ID/Nautica/refs/heads/main/kvProxyList.json";
