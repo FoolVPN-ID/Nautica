@@ -1101,7 +1101,7 @@ let baseHTML = `
       }
     </script>
   </head>
-  <body class="bg-white dark:bg-neutral-800 bg-fixed">
+  <body class="bg-slate-50 dark:bg-slate-900 bg-fixed">
     <!-- Notification -->
     <div
       id="notification-badge"
@@ -1120,7 +1120,7 @@ let baseHTML = `
         </svg>
       </div>
       <div>
-        <div class="text-md font-bold text-blue-500">Berhasil!</div>
+        <div class="text-md font-bold text-indigo-500">Berhasil!</div>
         <p class="text-sm text-neutral-800">Akun berhasil disalin</p>
       </div>
     </div>
@@ -1178,19 +1178,19 @@ let baseHTML = `
             <div class="flex w-full h-full gap-1 justify-between">
               <button
                 onclick="copyToClipboardAsTarget('clash')"
-                class="basis-1/2 p-2 rounded-full bg-amber-400 flex justify-center items-center"
+                class="basis-1/2 p-2 rounded-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold transition-colors flex justify-center items-center"
               >
                 Clash
               </button>
               <button
                 onclick="copyToClipboardAsTarget('sfa')"
-                class="basis-1/2 p-2 rounded-full bg-amber-400 flex justify-center items-center"
+                class="basis-1/2 p-2 rounded-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold transition-colors flex justify-center items-center"
               >
                 SFA
               </button>
               <button
                 onclick="copyToClipboardAsTarget('bfr')"
-                class="basis-1/2 p-2 rounded-full bg-amber-400 flex justify-center items-center"
+                class="basis-1/2 p-2 rounded-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold transition-colors flex justify-center items-center"
               >
                 BFR
               </button>
@@ -1200,13 +1200,13 @@ let baseHTML = `
             <div class="flex w-full h-full gap-1 justify-between">
               <button
                 onclick="copyToClipboardAsTarget('v2ray')"
-                class="basis-1/2 p-2 rounded-full bg-amber-400 flex justify-center items-center"
+                class="basis-1/2 p-2 rounded-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold transition-colors flex justify-center items-center"
               >
                 V2Ray/Xray
               </button>
               <button
                 onclick="copyToClipboardAsRaw()"
-                class="basis-1/2 p-2 rounded-full bg-amber-400 flex justify-center items-center"
+                class="basis-1/2 p-2 rounded-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold transition-colors flex justify-center items-center"
               >
                 Raw
               </button>
@@ -1237,7 +1237,7 @@ let baseHTML = `
               />
               <button
                 onclick="registerDomain()"
-                class="p-2 rounded-full bg-amber-400 flex justify-center items-center"
+                class="p-2 rounded-full bg-indigo-500 hover:bg-indigo-600 text-white transition-colors flex justify-center items-center"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
                   <path
@@ -1260,9 +1260,9 @@ let baseHTML = `
     </div>
 
     <footer>
-      <div class="fixed bottom-3 right-3 flex flex-col gap-1 z-50">
+      <div class="fixed bottom-3 right-3 flex flex-col gap-2 z-50">
         <a href="${DONATE_LINK}" target="_blank">
-          <button class="bg-green-500 rounded-full border-2 border-neutral-800 p-1 block">
+          <button class="bg-green-500 hover:bg-green-600 transition-colors rounded-full border-2 border-neutral-800 p-2 block text-white">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
               <path
                 d="M10.464 8.746c.227-.18.497-.311.786-.394v2.795a2.252 2.252 0 0 1-.786-.393c-.394-.313-.546-.681-.546-1.004 0-.323.152-.691.546-1.004ZM12.75 15.662v-2.824c.347.085.664.228.921.421.427.32.579.686.579.991 0 .305-.152.671-.579.991a2.534 2.534 0 0 1-.921.42Z"
@@ -1275,7 +1275,7 @@ let baseHTML = `
             </svg>
           </button>
         </a>
-        <button onclick="toggleWildcardsWindow()" class="bg-indigo-400 rounded-full border-2 border-neutral-800 p-1 PLACEHOLDER_API_READY">
+        <button onclick="toggleWildcardsWindow()" class="bg-indigo-500 hover:bg-indigo-600 transition-colors rounded-full border-2 border-neutral-800 p-2 text-white PLACEHOLDER_API_READY">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -1291,7 +1291,7 @@ let baseHTML = `
             />
           </svg>
         </button>
-        <button onclick="toggleDarkMode()" class="bg-amber-400 rounded-full border-2 border-neutral-800 p-1">
+        <button onclick="toggleDarkMode()" class="bg-slate-600 hover:bg-slate-500 transition-colors rounded-full border-2 border-neutral-800 p-2 text-white">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -1575,7 +1575,7 @@ class Document {
   }
 
   setTitle(title) {
-    this.html = this.html.replaceAll("PLACEHOLDER_JUDUL", title);
+    this.html = this.html.replaceAll("PLACEHOLDER_JUDUL", title.replace("text-blue-500", "text-indigo-500"));
   }
 
   addInfo(text) {
@@ -1597,22 +1597,22 @@ class Document {
       const proxyData = this.proxies[i];
 
       // Assign proxies
-      proxyGroupElement += `<div class="lozad scale-95 mb-2 bg-white dark:bg-neutral-800 transition-transform duration-200 rounded-lg p-4 w-60 border-2 border-neutral-800">`;
-      proxyGroupElement += `  <div id="countryFlag" class="absolute -translate-y-9 -translate-x-2 border-2 border-neutral-800 rounded-full overflow-hidden"><img width="32" src="https://hatscripts.github.io/circle-flags/flags/${proxyData.country.toLowerCase()}.svg" /></div>`;
-      proxyGroupElement += `  <div>`;
-      proxyGroupElement += `    <div id="ping-${i}" class="animate-pulse text-xs font-semibold dark:text-white">Idle ${proxyData.proxyIP}:${proxyData.proxyPort}</div>`;
+      proxyGroupElement += `<div class="lozad scale-95 mb-4 bg-white dark:bg-slate-800 transition-all duration-300 rounded-lg p-6 flex flex-col shadow-md hover:shadow-lg border border-slate-200 dark:border-slate-700 hover:scale-105">`;
+      proxyGroupElement += `  <div id="countryFlag" class="absolute -translate-y-11 -translate-x-2 border-4 border-white dark:border-slate-800 rounded-full overflow-hidden"><img width="48" src="https://hatscripts.github.io/circle-flags/flags/${proxyData.country.toLowerCase()}.svg" /></div>`;
+      proxyGroupElement += `  <div class="flex-grow">`;
+      proxyGroupElement += `    <div id="ping-${i}" class="animate-pulse text-xs font-semibold text-slate-500 dark:text-slate-400 text-right">Idle ${proxyData.proxyIP}:${proxyData.proxyPort}</div>`;
       proxyGroupElement += `  </div>`;
-      proxyGroupElement += `  <div class="rounded py-1 px-2 bg-amber-400 dark:bg-neutral-800 dark:border-2 dark:border-amber-400">`;
-      proxyGroupElement += `    <h5 class="font-bold text-md text-neutral-900 dark:text-white mb-1 overflow-x-scroll scrollbar-hide text-nowrap">${proxyData.org}</h5>`;
-      proxyGroupElement += `    <div class="text-neutral-900 dark:text-white text-sm">`;
+      proxyGroupElement += `  <div class="rounded-lg py-4 px-4 bg-slate-50 dark:bg-slate-700/50 flex-grow mt-4">`;
+      proxyGroupElement += `    <h5 class="font-bold text-lg text-slate-800 dark:text-slate-100 mb-1 overflow-x-scroll scrollbar-hide text-nowrap">${proxyData.org}</h5>`;
+      proxyGroupElement += `    <div class="text-slate-600 dark:text-slate-300 text-sm">`;
       proxyGroupElement += `      <p>IP: ${proxyData.proxyIP}</p>`;
       proxyGroupElement += `      <p>Port: ${proxyData.proxyPort}</p>`;
       proxyGroupElement += `      <div id="container-region-check-${i}">`;
       proxyGroupElement += `        <input id="config-sample-${i}" class="hidden" type="text" value="${proxyData.list[0]}">`;
       proxyGroupElement += `      </div>`;
-      proxyGroupElement += `    </div>`;
+      proxyG_proxy_info += `    </div>`;
       proxyGroupElement += `  </div>`;
-      proxyGroupElement += `  <div class="flex flex-col gap-2 mt-3 text-sm">`;
+      proxyGroupElement += `  <div class="flex flex-col gap-2 mt-4 text-sm">`;
       for (let x = 0; x < proxyData.list.length; x++) {
         const indexName = [
           `${reverse("NAJORT")} TLS`,
@@ -1628,7 +1628,7 @@ class Document {
           proxyGroupElement += `<div class="flex gap-2 justify-around w-full">`;
         }
 
-        proxyGroupElement += `<button class="bg-blue-500 dark:bg-neutral-800 dark:border-2 dark:border-blue-500 rounded p-1 w-full text-white" onclick="copyToClipboard('${proxy}')">${indexName[x]}</button>`;
+        proxyGroupElement += `<button class="bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-500 dark:hover:bg-indigo-400 rounded-md p-2 w-full text-white font-semibold transition-colors duration-200" onclick="copyToClipboard('${proxy}')">${indexName[x]}</button>`;
 
         if (x % 2 == 1) {
           proxyGroupElement += `</div>`;
@@ -1662,7 +1662,7 @@ class Document {
   addPageButton(text, link, isDisabled) {
     const pageButton = `<li><button ${
       isDisabled ? "disabled" : ""
-    } class="px-3 py-1 bg-amber-400 border-2 border-neutral-800 rounded" onclick=navigateTo('${link}')>${text}</button></li>`;
+    } class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:bg-slate-400 dark:disabled:bg-slate-600 text-white font-semibold border-2 border-neutral-800 rounded-lg transition-colors" onclick=navigateTo('${link}')>${text}</button></li>`;
 
     this.html = this.html.replaceAll("PLACEHOLDER_PAGE_BUTTON", `${pageButton}\nPLACEHOLDER_PAGE_BUTTON`);
   }
