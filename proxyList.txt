@@ -1457,6 +1457,8 @@
 203.194.112.119,2053,ID,CV. Rumahweb Indonesia
 43.218.77.16,443,ID,Amazon.com, Inc.
 36.95.152.58,12137,ID,PT Telekomunikasi Indonesia
+149.129.250.8, 443, ID, 21F Ciputra World 1 DBS Tower JalanProf DR Satrio Kav 35 Jakarta 12940 Indonesia
+206.84.101.83, 8443, ID, PT MITRA VISIONER PRATAMA
 40.113.60.248,2053,IE,Microsoft Corporation
 40.113.60.248,8443,IE,Microsoft Corporation
 34.253.234.62,443,IE,Amazon Data Services Ireland Limited
