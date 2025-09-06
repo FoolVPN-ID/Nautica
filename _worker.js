@@ -1610,7 +1610,7 @@ class Document {
       proxyGroupElement += `      <div id="container-region-check-${i}">`;
       proxyGroupElement += `        <input id="config-sample-${i}" class="hidden" type="text" value="${proxyData.list[0]}">`;
       proxyGroupElement += `      </div>`;
-      proxyG_proxy_info += `    </div>`;
+      proxyGroupElement += `    </div>`;
       proxyGroupElement += `  </div>`;
       proxyGroupElement += `  <div class="flex flex-col gap-2 mt-4 text-sm">`;
       for (let x = 0; x < proxyData.list.length; x++) {
