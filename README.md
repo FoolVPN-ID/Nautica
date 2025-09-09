@@ -1,4 +1,4 @@
-# Welcome to Nautica
+# Welcome to GhostTunnel
 
 Sebuah repository serverless tunnel studi kasus Indonesia
 
@@ -51,7 +51,7 @@ Kode ini masih perlu banyak perbaikan, jadi silahkan berkontribusi dan berikan P
 ## Instant
 
 Klik tombol di bawah  
-[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/FoolVPN-ID/Nautica)
+[![Deploy to Cloudflare Workers](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/lektoflasher/GhostTunnel)
 
 ## Manual
 
@@ -94,5 +94,4 @@ Berikut cara aktivasinya:
 
 # Footnote
 
-- Hal aneh lain yang saya kerjakan [FoolVPN](https://t.me/foolvpn)
-- Tanya-tanya -> [Telegram](https://t.me/d_fordlalatina)
+- Tanya-tanya -> [Telegram](https://t.me/lektoflasher)
