@@ -3,9 +3,9 @@ import { connect } from "cloudflare:sockets";
 // import { Buffer } from "node:buffer";
 
 // Variables
-const rootDomain = "livetime.worker.dev"; // Ganti dengan domain utama kalian
+const rootDomain = "nettunnels.workers.dev"; // Ganti dengan domain utama kalian
 const serviceName = "privatevpn"; // Ganti dengan nama workers kalian
-const apiKey = "05e2fead943340082b40dff507198b284a14c"; // Ganti dengan Global API key kalian (https://dash.cloudflare.com/profile/api-tokens)
+const apiKey = "mvC2e-H3KgO_FdUMH_gwMZGGGPG4eITZz7kogMKn"; // Ganti dengan Global API key kalian (https://dash.cloudflare.com/profile/api-tokens)
 const apiEmail = "sis1733@gmail.com"; // Ganti dengan email yang kalian gunakan
 const accountID = "337c37587f708748ebc8022d43427206"; // Ganti dengan Account ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
 const zoneID = ""; // Ganti dengan Zone ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
