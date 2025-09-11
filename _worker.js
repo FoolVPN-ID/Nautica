@@ -42,7 +42,7 @@ async function getKVProxyList(kvProxyUrl = KV_PROXY_URL) {
 
   const kvProxy = await fetch(kvProxyUrl);
   if (kvProxy.status == 200) {
-    return await kvProxyList.json();
+    return await kvProxy.json();
   } else {
     return {};
   }
