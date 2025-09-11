@@ -10,23 +10,28 @@ const apiEmail = "sis1733@gmail.com"; // Ganti dengan email yang kalian gunakan
 const accountID = "337c37587f708748ebc8022d43427206"; // Ganti dengan Account ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
 const zoneID = ""; // Ganti dengan Zone ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
 let isApiReady = false;
-let proxyIP = "";
-let cachedProxyList = [];
+let prxIP = "";
+let cachedPrxList = [];
 
 // Constant
+const horse = "dHJvamFu";
+const flash = "dm1lc3M=";
+const v2 = "djJyYXk=";
+const neko = "Y2xhc2g=";
+
 const APP_DOMAIN = `${serviceName}.${rootDomain}`;
 const PORTS = [443, 80];
-const PROTOCOLS = [reverse("najort"), reverse("sselv"), reverse("ss")];
-const KV_PROXY_URL = "https://raw.githubusercontent.com/FoolVPN-ID/Nautica/refs/heads/main/kvProxyList.json";
-const PROXY_BANK_URL = "https://raw.githubusercontent.com/FoolVPN-ID/Nautica/refs/heads/main/proxyList.txt";
+const PROTOCOLS = [atob(horse), atob(flash), "ss"];
+const KV_PRX_URL = "https://raw.githubusercontent.com/FoolVPN-ID/Nautica/refs/heads/main/kvProxyList.json";
+const PRX_BANK_URL = "https://raw.githubusercontent.com/FoolVPN-ID/Nautica/refs/heads/main/proxyList.txt";
 const DNS_SERVER_ADDRESS = "8.8.8.8";
 const DNS_SERVER_PORT = 53;
-const PROXY_HEALTH_CHECK_API = "https://id1.foolvpn.me/api/v1/check";
+const PRX_HEALTH_CHECK_API = "https://id1.foolvpn.me/api/v1/check";
 const CONVERTER_URL = "https://api.foolvpn.me/convert";
 const DONATE_LINK = "https://trakteer.id/dickymuliafiqri/tip";
 const BAD_WORDS_LIST =
   "https://gist.githubusercontent.com/adierebel/a69396d79b787b84d89b45002cb37cd6/raw/6df5f8728b18699496ad588b3953931078ab9cf1/kata-kasar.txt";
-const PROXY_PER_PAGE = 24;
+const PRX_PER_PAGE = 24;
 const WS_READY_STATE_OPEN = 1;
 const WS_READY_STATE_CLOSING = 2;
 const CORS_HEADER_OPTIONS = {
@@ -35,20 +40,20 @@ const CORS_HEADER_OPTIONS = {
   "Access-Control-Max-Age": "86400",
 };
 
-async function getKVProxyList(kvProxyUrl = KV_PROXY_URL) {
-  if (!kvProxyUrl) {
-    throw new Error("No KV Proxy URL Provided!");
+async function getKVPrxList(kvPrxUrl = KV_PRX_URL) {
+  if (!kvPrxUrl) {
+    throw new Error("No URL Provided!");
   }
 
-  const kvProxy = await fetch(kvProxyUrl);
-  if (kvProxy.status == 200) {
-    return await kvProxy.json();
+  const kvPrx = await fetch(kvPrxUrl);
+  if (kvPrx.status == 200) {
+    return await kvPrx.json();
   } else {
     return {};
   }
 }
 
-async function getProxyList(proxyBankUrl = PROXY_BANK_URL) {
+async function getPrxList(prxBankUrl = PRX_BANK_URL) {
   /**
    * Format:
    *
@@ -56,21 +61,21 @@ async function getProxyList(proxyBankUrl = PROXY_BANK_URL) {
    * Contoh:
    * 1.1.1.1,443,SG,Cloudflare Inc.
    */
-  if (!proxyBankUrl) {
-    throw new Error("No Proxy Bank URL Provided!");
+  if (!prxBankUrl) {
+    throw new Error("No URL Provided!");
   }
 
-  const proxyBank = await fetch(proxyBankUrl);
-  if (proxyBank.status == 200) {
-    const text = (await proxyBank.text()) || "";
+  const prxBank = await fetch(prxBankUrl);
+  if (prxBank.status == 200) {
+    const text = (await prxBank.text()) || "";
 
-    const proxyString = text.split("\n").filter(Boolean);
-    cachedProxyList = proxyString
+    const prxString = text.split("\n").filter(Boolean);
+    cachedPrxList = prxString
       .map((entry) => {
-        const [proxyIP, proxyPort, country, org] = entry.split(",");
+        const [prxIP, prxPort, country, org] = entry.split(",");
         return {
-          proxyIP: proxyIP || "Unknown",
-          proxyPort: proxyPort || "Unknown",
+          prxIP: prxIP || "Unknown",
+          prxPort: prxPort || "Unknown",
           country: country || "Unknown",
           org: org || "Unknown Org",
         };
@@ -78,10 +83,10 @@ async function getProxyList(proxyBankUrl = PROXY_BANK_URL) {
       .filter(Boolean);
   }
 
-  return cachedProxyList;
+  return cachedPrxList;
 }
 
-async function reverseProxy(request, target, targetPath) {
+async function reverseWeb(request, target, targetPath) {
   const targetUrl = new URL(request.url);
   const targetChunk = target.split(":");
 
@@ -104,14 +109,14 @@ async function reverseProxy(request, target, targetPath) {
   return newResponse;
 }
 
-function getAllConfig(request, hostName, proxyList, page = 0) {
-  const startIndex = PROXY_PER_PAGE * page;
+function getAllConfig(request, hostName, prxList, page = 0) {
+  const startIndex = PRX_PER_PAGE * page;
 
   try {
     const uuid = crypto.randomUUID();
 
     // Build URI
-    const uri = new URL(`${reverse("najort")}://${hostName}`);
+    const uri = new URL(`${atob(horse)}://${hostName}`);
     uri.searchParams.set("encryption", "none");
     uri.searchParams.set("type", "ws");
     uri.searchParams.set("host", hostName);
@@ -119,18 +124,18 @@ function getAllConfig(request, hostName, proxyList, page = 0) {
     // Build HTML
     const document = new Document(request);
     document.setTitle("Welcome to <span class='text-blue-500 font-semibold'>Nautica</span>");
-    document.addInfo(`Total: ${proxyList.length}`);
-    document.addInfo(`Page: ${page}/${Math.floor(proxyList.length / PROXY_PER_PAGE)}`);
+    document.addInfo(`Total: ${prxList.length}`);
+    document.addInfo(`Page: ${page}/${Math.floor(prxList.length / PRX_PER_PAGE)}`);
 
-    for (let i = startIndex; i < startIndex + PROXY_PER_PAGE; i++) {
-      const proxy = proxyList[i];
-      if (!proxy) break;
+    for (let i = startIndex; i < startIndex + PRX_PER_PAGE; i++) {
+      const prx = prxList[i];
+      if (!prx) break;
 
-      const { proxyIP, proxyPort, country, org } = proxy;
+      const { prxIP, prxPort, country, org } = prx;
 
-      uri.searchParams.set("path", `/${proxyIP}-${proxyPort}`);
+      uri.searchParams.set("path", `/${prxIP}-${prxPort}`);
 
-      const proxies = [];
+      const prxs = [];
       for (const port of PORTS) {
         uri.port = port.toString();
         uri.hash = `${i + 1} ${getFlagEmoji(country)} ${org} WS ${port == 443 ? "TLS" : "NTLS"} [${serviceName}]`;
@@ -140,9 +145,9 @@ function getAllConfig(request, hostName, proxyList, page = 0) {
             uri.username = btoa(`none:${uuid}`);
             uri.searchParams.set(
               "plugin",
-              `v2ray-plugin${
+              `${atob(v2)}-plugin${
                 port == 80 ? "" : ";tls"
-              };mux=0;mode=websocket;path=/${proxyIP}-${proxyPort};host=${hostName}`
+              };mux=0;mode=websocket;path=/${prxIP}-${prxPort};host=${hostName}`
             );
           } else {
             uri.username = uuid;
@@ -151,30 +156,30 @@ function getAllConfig(request, hostName, proxyList, page = 0) {
 
           uri.protocol = protocol;
           uri.searchParams.set("security", port == 443 ? "tls" : "none");
-          uri.searchParams.set("sni", port == 80 && protocol == reverse("sselv") ? "" : hostName);
+          uri.searchParams.set("sni", port == 80 && protocol == atob(flash) ? "" : hostName);
 
           // Build VPN URI
-          proxies.push(uri.toString());
+          prxs.push(uri.toString());
         }
       }
-      document.registerProxies(
+      document.registerPrxs(
         {
-          proxyIP,
-          proxyPort,
+          prxIP,
+          prxPort,
           country,
           org,
         },
-        proxies
+        prxs
       );
     }
 
     // Build pagination
     document.addPageButton("Prev", `/sub/${page > 0 ? page - 1 : 0}`, page > 0 ? false : true);
-    document.addPageButton("Next", `/sub/${page + 1}`, page < Math.floor(proxyList.length / 10) ? false : true);
+    document.addPageButton("Next", `/sub/${page + 1}`, page < Math.floor(prxList.length / 10) ? false : true);
 
     return document.build();
   } catch (error) {
-    return `An error occurred while generating the ${reverse("SSELV")} configurations. ${error}`;
+    return `An error occurred while generating the ${atob(flash).toUpperCase()} configurations. ${error}`;
   }
 }
 
@@ -189,21 +194,21 @@ export default {
         isApiReady = true;
       }
 
-      // Handle proxy client
+      // Handle prx client
       if (upgradeHeader === "websocket") {
-        const proxyMatch = url.pathname.match(/^\/(.+[:=-]\d+)$/);
+        const prxMatch = url.pathname.match(/^\/(.+[:=-]\d+)$/);
 
         if (url.pathname.length == 3 || url.pathname.match(",")) {
           // Contoh: /ID, /SG, dll
-          const proxyKeys = url.pathname.replace("/", "").toUpperCase().split(",");
-          const proxyKey = proxyKeys[Math.floor(Math.random() * proxyKeys.length)];
-          const kvProxy = await getKVProxyList();
+          const prxKeys = url.pathname.replace("/", "").toUpperCase().split(",");
+          const prxKey = prxKeys[Math.floor(Math.random() * prxKeys.length)];
+          const kvPrx = await getKVPrxList();
 
-          proxyIP = kvProxy[proxyKey][Math.floor(Math.random() * kvProxy[proxyKey].length)];
+          prxIP = kvPrx[prxKey][Math.floor(Math.random() * kvPrx[prxKey].length)];
 
           return await websocketHandler(request);
-        } else if (proxyMatch) {
-          proxyIP = proxyMatch[1];
+        } else if (prxMatch) {
+          prxIP = prxMatch[1];
           return await websocketHandler(request);
         }
       }
@@ -215,24 +220,24 @@ export default {
 
         // Queries
         const countrySelect = url.searchParams.get("cc")?.split(",");
-        const proxyBankUrl = url.searchParams.get("proxy-list") || env.PROXY_BANK_URL;
-        let proxyList = (await getProxyList(proxyBankUrl)).filter((proxy) => {
-          // Filter proxies by Country
+        const prxBankUrl = url.searchParams.get("prx-list") || env.PRX_BANK_URL;
+        let prxList = (await getPrxList(prxBankUrl)).filter((prx) => {
+          // Filter prxs by Country
           if (countrySelect) {
-            return countrySelect.includes(proxy.country);
+            return countrySelect.includes(prx.country);
           }
 
           return true;
         });
 
-        const result = getAllConfig(request, hostname, proxyList, pageIndex);
+        const result = getAllConfig(request, hostname, prxList, pageIndex);
         return new Response(result, {
           status: 200,
           headers: { "Content-Type": "text/html;charset=utf-8" },
         });
       } else if (url.pathname.startsWith("/check")) {
         const target = url.searchParams.get("target").split(":");
-        const result = await checkProxyHealth(target[0], target[1] || "443");
+        const result = await checkPrxHealth(target[0], target[1] || "443");
 
         return new Response(JSON.stringify(result), {
           status: 200,
@@ -280,25 +285,25 @@ export default {
           const filterFormat = url.searchParams.get("format") || "raw";
           const fillerDomain = url.searchParams.get("domain") || APP_DOMAIN;
 
-          const proxyBankUrl = url.searchParams.get("proxy-list") || env.PROXY_BANK_URL;
-          const proxyList = await getProxyList(proxyBankUrl)
-            .then((proxies) => {
+          const prxBankUrl = url.searchParams.get("prx-list") || env.PRX_BANK_URL;
+          const prxList = await getPrxList(prxBankUrl)
+            .then((prxs) => {
               // Filter CC
               if (filterCC.length) {
-                return proxies.filter((proxy) => filterCC.includes(proxy.country));
+                return prxs.filter((prx) => filterCC.includes(prx.country));
               }
-              return proxies;
+              return prxs;
             })
-            .then((proxies) => {
+            .then((prxs) => {
               // shuffle result
-              shuffleArray(proxies);
-              return proxies;
+              shuffleArray(prxs);
+              return prxs;
             });
 
           const uuid = crypto.randomUUID();
           const result = [];
-          for (const proxy of proxyList) {
-            const uri = new URL(`${reverse("najort")}://${fillerDomain}`);
+          for (const prx of prxList) {
+            const uri = new URL(`${atob(horse)}://${fillerDomain}`);
             uri.searchParams.set("encryption", "none");
             uri.searchParams.set("type", "ws");
             uri.searchParams.set("host", APP_DOMAIN);
@@ -313,8 +318,8 @@ export default {
                   uri.username = btoa(`none:${uuid}`);
                   uri.searchParams.set(
                     "plugin",
-                    `v2ray-plugin${port == 80 ? "" : ";tls"};mux=0;mode=websocket;path=/${proxy.proxyIP}-${
-                      proxy.proxyPort
+                    `${atob(v2)}-plugin${port == 80 ? "" : ";tls"};mux=0;mode=websocket;path=/${prx.prxIP}-${
+                      prx.prxPort
                     };host=${APP_DOMAIN}`
                   );
                 } else {
@@ -322,10 +327,10 @@ export default {
                 }
 
                 uri.searchParams.set("security", port == 443 ? "tls" : "none");
-                uri.searchParams.set("sni", port == 80 && protocol == reverse("sselv") ? "" : APP_DOMAIN);
-                uri.searchParams.set("path", `/${proxy.proxyIP}-${proxy.proxyPort}`);
+                uri.searchParams.set("sni", port == 80 && protocol == atob(flash) ? "" : APP_DOMAIN);
+                uri.searchParams.set("path", `/${prx.prxIP}-${prx.prxPort}`);
 
-                uri.hash = `${result.length + 1} ${getFlagEmoji(proxy.country)} ${proxy.org} WS ${
+                uri.hash = `${result.length + 1} ${getFlagEmoji(prx.country)} ${prx.org} WS ${
                   port == 443 ? "TLS" : "NTLS"
                 } [${serviceName}]`;
                 result.push(uri.toString());
@@ -338,10 +343,10 @@ export default {
             case "raw":
               finalResult = result.join("\n");
               break;
-            case "v2ray":
+            case atob(v2):
               finalResult = btoa(result.join("\n"));
               break;
-            case "clash":
+            case atob(neko):
             case "sfa":
             case "bfr":
               const res = await fetch(CONVERTER_URL, {
@@ -390,8 +395,8 @@ export default {
         }
       }
 
-      const targetReverseProxy = env.REVERSE_PROXY_TARGET || "example.com";
-      return await reverseProxy(request, targetReverseProxy);
+      const targetReversePrx = env.REVERSE_PRX_TARGET || "example.com";
+      return await reverseWeb(request, targetReversePrx);
     } catch (err) {
       return new Response(`An error occurred: ${err.toString()}`, {
         status: 500,
@@ -440,12 +445,12 @@ async function websocketHandler(request) {
           const protocol = await protocolSniffer(chunk);
           let protocolHeader;
 
-          if (protocol === reverse("najorT")) {
-            protocolHeader = parseNajortHeader(chunk);
-          } else if (protocol === reverse("SSELV")) {
-            protocolHeader = parseSselvHeader(chunk);
-          } else if (protocol === reverse("skcoswodahS")) {
-            protocolHeader = parseSsHeader(chunk);
+          if (protocol === atob(horse)) {
+            protocolHeader = readHorseHeader(chunk);
+          } else if (protocol === atob(flash)) {
+            protocolHeader = readFlashHeader(chunk);
+          } else if (protocol === "ss") {
+            protocolHeader = readSsHeader(chunk);
           } else {
             throw new Error("Unknown Protocol!");
           }
@@ -507,23 +512,23 @@ async function websocketHandler(request) {
 
 async function protocolSniffer(buffer) {
   if (buffer.byteLength >= 62) {
-    const najortDelimiter = new Uint8Array(buffer.slice(56, 60));
-    if (najortDelimiter[0] === 0x0d && najortDelimiter[1] === 0x0a) {
-      if (najortDelimiter[2] === 0x01 || najortDelimiter[2] === 0x03 || najortDelimiter[2] === 0x7f) {
-        if (najortDelimiter[3] === 0x01 || najortDelimiter[3] === 0x03 || najortDelimiter[3] === 0x04) {
-          return reverse("najorT");
+    const horseDelimiter = new Uint8Array(buffer.slice(56, 60));
+    if (horseDelimiter[0] === 0x0d && horseDelimiter[1] === 0x0a) {
+      if (horseDelimiter[2] === 0x01 || horseDelimiter[2] === 0x03 || horseDelimiter[2] === 0x7f) {
+        if (horseDelimiter[3] === 0x01 || horseDelimiter[3] === 0x03 || horseDelimiter[3] === 0x04) {
+          return atob(horse);
         }
       }
     }
   }
 
-  const sselvDelimiter = new Uint8Array(buffer.slice(1, 17));
+  const flashDelimiter = new Uint8Array(buffer.slice(1, 17));
   // Hanya mendukung UUID v4
-  if (arrayBufferToHex(sselvDelimiter).match(/^[0-9a-f]{8}[0-9a-f]{4}4[0-9a-f]{3}[89ab][0-9a-f]{3}[0-9a-f]{12}$/i)) {
-    return reverse("SSELV");
+  if (arrayBufferToHex(flashDelimiter).match(/^[0-9a-f]{8}[0-9a-f]{4}4[0-9a-f]{3}[89ab][0-9a-f]{3}[0-9a-f]{12}$/i)) {
+    return atob(flash);
   }
 
-  return reverse("skcoswodahS"); // default
+  return "ss"; // default
 }
 
 async function handleTCPOutBound(
@@ -551,8 +556,8 @@ async function handleTCPOutBound(
 
   async function retry() {
     const tcpSocket = await connectAndWrite(
-      proxyIP.split(/[:=-]/)[0] || addressRemote,
-      proxyIP.split(/[:=-]/)[1] || portRemote
+      prxIP.split(/[:=-]/)[0] || addressRemote,
+      prxIP.split(/[:=-]/)[1] || portRemote
     );
     tcpSocket.closed
       .catch((error) => {
@@ -652,7 +657,7 @@ function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
   return stream;
 }
 
-function parseSsHeader(ssBuffer) {
+function readSsHeader(ssBuffer) {
   const view = new DataView(ssBuffer);
 
   const addressType = view.getUint8(0);
@@ -682,7 +687,7 @@ function parseSsHeader(ssBuffer) {
     default:
       return {
         hasError: true,
-        message: `Invalid addressType for ${reverse("skcoswodahS")}: ${addressType}`,
+        message: `Invalid addressType for SS: ${addressType}`,
       };
   }
 
@@ -708,7 +713,7 @@ function parseSsHeader(ssBuffer) {
   };
 }
 
-function parseSselvHeader(buffer) {
+function readFlashHeader(buffer) {
   const version = new Uint8Array(buffer.slice(0, 1));
   let isUDP = false;
 
@@ -721,7 +726,7 @@ function parseSselvHeader(buffer) {
   } else {
     return {
       hasError: true,
-      message: `command ${cmd} is not support, command 01-tcp,02-udp,03-mux`,
+      message: `command ${cmd} is not supported`,
     };
   }
   const portIndex = 18 + optLength + 1;
@@ -779,17 +784,17 @@ function parseSselvHeader(buffer) {
   };
 }
 
-function parseNajortHeader(buffer) {
-  const socks5DataBuffer = buffer.slice(58);
-  if (socks5DataBuffer.byteLength < 6) {
+function readHorseHeader(buffer) {
+  const dataBuffer = buffer.slice(58);
+  if (dataBuffer.byteLength < 6) {
     return {
       hasError: true,
-      message: "invalid SOCKS5 request data",
+      message: "invalid request data",
     };
   }
 
   let isUDP = false;
-  const view = new DataView(socks5DataBuffer);
+  const view = new DataView(dataBuffer);
   const cmd = view.getUint8(0);
   if (cmd == 3) {
     isUDP = true;
@@ -804,20 +809,16 @@ function parseNajortHeader(buffer) {
   switch (addressType) {
     case 1: // For IPv4
       addressLength = 4;
-      addressValue = new Uint8Array(socks5DataBuffer.slice(addressValueIndex, addressValueIndex + addressLength)).join(
-        "."
-      );
+      addressValue = new Uint8Array(dataBuffer.slice(addressValueIndex, addressValueIndex + addressLength)).join(".");
       break;
     case 3: // For Domain
-      addressLength = new Uint8Array(socks5DataBuffer.slice(addressValueIndex, addressValueIndex + 1))[0];
+      addressLength = new Uint8Array(dataBuffer.slice(addressValueIndex, addressValueIndex + 1))[0];
       addressValueIndex += 1;
-      addressValue = new TextDecoder().decode(
-        socks5DataBuffer.slice(addressValueIndex, addressValueIndex + addressLength)
-      );
+      addressValue = new TextDecoder().decode(dataBuffer.slice(addressValueIndex, addressValueIndex + addressLength));
       break;
     case 4: // For IPv6
       addressLength = 16;
-      const dataView = new DataView(socks5DataBuffer.slice(addressValueIndex, addressValueIndex + addressLength));
+      const dataView = new DataView(dataBuffer.slice(addressValueIndex, addressValueIndex + addressLength));
       const ipv6 = [];
       for (let i = 0; i < 8; i++) {
         ipv6.push(dataView.getUint16(i * 2).toString(16));
@@ -839,7 +840,7 @@ function parseNajortHeader(buffer) {
   }
 
   const portIndex = addressValueIndex + addressLength;
-  const portBuffer = socks5DataBuffer.slice(portIndex, portIndex + 2);
+  const portBuffer = dataBuffer.slice(portIndex, portIndex + 2);
   const portRemote = new DataView(portBuffer).getUint16(0);
   return {
     hasError: false,
@@ -847,44 +848,11 @@ function parseNajortHeader(buffer) {
     addressType: addressType,
     portRemote: portRemote,
     rawDataIndex: portIndex + 4,
-    rawClientData: socks5DataBuffer.slice(portIndex + 4),
+    rawClientData: dataBuffer.slice(portIndex + 4),
     version: null,
     isUDP: isUDP,
   };
 }
-
-// function parseSsemvHeader(buffer) {
-//   const date = new Date(new Date().toLocaleString("en", { timeZone: "Asia/Jakarta" }));
-//   console.log(`Date: ${date}`);
-//   console.log(`First 16 bytes: ${arrayBufferToHex(buffer.slice(0, 17))}`);
-//   console.log(`Remaining bytes: ${arrayBufferToHex(buffer.slice(17))}`);
-
-//   // ===== KEY GENERATION =====
-//   const userId = "3b670322-6ac1-41ec-9ff3-714245d41bf7";
-//   const uuidConst = "c48619fe-8f02-49e0-b9e9-edf763e17e21";
-
-//   // Step 1: Generate AES key
-//   const key = createHash("md5")
-//     .update(userId + uuidConst)
-//     .digest();
-//   console.log(`KEY: ${key}`);
-
-//   // Step 2: Generate Timestamp (current Unix time)
-//   const timestamp = Math.floor(date.getTime() / 1000); // current timestamp in seconds
-
-//   // Step 3: Generate IV from Timestamp
-//   const x = Buffer.alloc(8);
-//   x.writeBigUInt64BE(BigInt(timestamp)); // 8-byte timestamp (Big Endian)
-//   const iv_source = Buffer.concat([x, x, x, x]);
-//   const iv = createHash("md5").update(iv_source).digest();
-//   console.log(`IV: ${iv}`);
-
-//   // Step 4: Decrypt using AES-128-CFB
-//   const decipher = createDecipheriv("aes-128-cfb", key, iv);
-//   const decrypted = Buffer.concat([decipher.update(buffer.slice(17)), decipher.final()]);
-
-//   console.log(`Decrypted Header: ${decrypted.toString("hex")}`);
-// }
 
 async function remoteSocketToWS(remoteSocket, webSocket, responseHeader, retry, log) {
   let header = responseHeader;
@@ -933,8 +901,8 @@ function safeCloseWebSocket(socket) {
   }
 }
 
-async function checkProxyHealth(proxyIP, proxyPort) {
-  const req = await fetch(`${PROXY_HEALTH_CHECK_API}?ip=${proxyIP}:${proxyPort}`);
+async function checkPrxHealth(prxIP, prxPort) {
+  const req = await fetch(`${PRX_HEALTH_CHECK_API}?ip=${prxIP}:${prxPort}`);
   return await req.json();
 }
 
@@ -969,15 +937,6 @@ function shuffleArray(array) {
     // And swap it with the current element.
     [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
   }
-}
-
-async function generateHashFromText(text) {
-  const msgUint8 = new TextEncoder().encode(text); // encode as (utf-8) Uint8Array
-  const hashBuffer = await crypto.subtle.digest("MD5", msgUint8); // hash the message
-  const hashArray = Array.from(new Uint8Array(hashBuffer)); // convert buffer to byte array
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join(""); // convert bytes to hex string
-
-  return hashHex;
 }
 
 function reverse(s) {
@@ -1566,7 +1525,7 @@ let baseHTML = `
 `;
 
 class Document {
-  proxies = [];
+  prxs = [];
 
   constructor(request) {
     this.html = baseHTML;
@@ -1583,76 +1542,76 @@ class Document {
     this.html = this.html.replaceAll("PLACEHOLDER_INFO", `${text}\nPLACEHOLDER_INFO`);
   }
 
-  registerProxies(data, proxies) {
-    this.proxies.push({
+  registerPrxs(data, prxs) {
+    this.prxs.push({
       ...data,
-      list: proxies,
+      list: prxs,
     });
   }
 
-  buildProxyGroup() {
-    let proxyGroupElement = "";
-    proxyGroupElement += `<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">`;
-    for (let i = 0; i < this.proxies.length; i++) {
-      const proxyData = this.proxies[i];
+  buildPrxGroup() {
+    let prxGroupElement = "";
+    prxGroupElement += `<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">`;
+    for (let i = 0; i < this.prxs.length; i++) {
+      const prxData = this.prxs[i];
 
-      // Assign proxies
-      proxyGroupElement += `<div class="lozad scale-95 mb-4 bg-white dark:bg-slate-800 transition-all duration-300 rounded-lg p-6 flex flex-col shadow-md hover:shadow-lg border border-slate-200 dark:border-slate-700 hover:scale-105">`;
-      proxyGroupElement += `  <div id="countryFlag" class="absolute -translate-y-11 -translate-x-2 border-4 border-white dark:border-slate-800 rounded-full overflow-hidden"><img width="48" src="https://hatscripts.github.io/circle-flags/flags/${proxyData.country.toLowerCase()}.svg" /></div>`;
-      proxyGroupElement += `  <div class="flex-grow">`;
-      proxyGroupElement += `    <div id="ping-${i}" class="animate-pulse text-xs font-semibold text-slate-500 dark:text-slate-400 text-right">Idle ${proxyData.proxyIP}:${proxyData.proxyPort}</div>`;
-      proxyGroupElement += `  </div>`;
-      proxyGroupElement += `  <div class="rounded-lg py-4 px-4 bg-slate-50 dark:bg-slate-700/50 flex-grow mt-4">`;
-      proxyGroupElement += `    <h5 class="font-bold text-lg text-slate-800 dark:text-slate-100 mb-1 overflow-x-scroll scrollbar-hide text-nowrap">${proxyData.org}</h5>`;
-      proxyGroupElement += `    <div class="text-slate-600 dark:text-slate-300 text-sm">`;
-      proxyGroupElement += `      <p>IP: ${proxyData.proxyIP}</p>`;
-      proxyGroupElement += `      <p>Port: ${proxyData.proxyPort}</p>`;
-      proxyGroupElement += `      <div id="container-region-check-${i}">`;
-      proxyGroupElement += `        <input id="config-sample-${i}" class="hidden" type="text" value="${proxyData.list[0]}">`;
-      proxyGroupElement += `      </div>`;
-      proxyGroupElement += `    </div>`;
-      proxyGroupElement += `  </div>`;
-      proxyGroupElement += `  <div class="flex flex-col gap-2 mt-4 text-sm">`;
-      for (let x = 0; x < proxyData.list.length; x++) {
+      // Assign prxs
+      prxGroupElement += `<div class="lozad scale-95 mb-4 bg-white dark:bg-slate-800 transition-all duration-300 rounded-lg p-6 flex flex-col shadow-md hover:shadow-lg border border-slate-200 dark:border-slate-700 hover:scale-105">`;
+      prxGroupElement += `  <div id="countryFlag" class="absolute -translate-y-11 -translate-x-2 border-4 border-white dark:border-slate-800 rounded-full overflow-hidden"><img width="48" src="https://hatscripts.github.io/circle-flags/flags/${prxData.country.toLowerCase()}.svg" /></div>`;
+      prxGroupElement += `  <div class="flex-grow">`;
+      prxGroupElement += `    <div id="ping-${i}" class="animate-pulse text-xs font-semibold text-slate-500 dark:text-slate-400 text-right">Idle ${prxData.prxIP}:${prxData.prxPort}</div>`;
+      prxGroupElement += `  </div>`;
+      prxGroupElement += `  <div class="rounded-lg py-4 px-4 bg-slate-50 dark:bg-slate-700/50 flex-grow mt-4">`;
+      prxGroupElement += `    <h5 class="font-bold text-lg text-slate-800 dark:text-slate-100 mb-1 overflow-x-scroll scrollbar-hide text-nowrap">${prxData.org}</h5>`;
+      prxGroupElement += `    <div class="text-slate-600 dark:text-slate-300 text-sm">`;
+      prxGroupElement += `      <p>IP: ${prxData.prxIP}</p>`;
+      prxGroupElement += `      <p>Port: ${prxData.prxPort}</p>`;
+      prxGroupElement += `      <div id="container-region-check-${i}">`;
+      prxGroupElement += `        <input id="config-sample-${i}" class="hidden" type="text" value="${prxData.list[0]}">`;
+      prxGroupElement += `      </div>`;
+      prxGroupElement += `    </div>`;
+      prxGroupElement += `  </div>`;
+      prxGroupElement += `  <div class="flex flex-col gap-2 mt-4 text-sm">`;
+      for (let x = 0; x < prxData.list.length; x++) {
         const indexName = [
-          `${reverse("NAJORT")} TLS`,
-          `${reverse("SSELV")} TLS`,
-          `${reverse("SS")} TLS`,
-          `${reverse("NAJORT")} NTLS`,
-          `${reverse("SSELV")} NTLS`,
-          `${reverse("SS")} NTLS`,
+          `${atob(horse).toUpperCase()} TLS`,
+          `${atob(flash).toUpperCase()} TLS`,
+          `SS TLS`,
+          `${atob(horse).toUpperCase()} NTLS`,
+          `${atob(flash).toUpperCase()} NTLS`,
+          `SS NTLS`,
         ];
-        const proxy = proxyData.list[x];
+        const prx = prxData.list[x];
 
         if (x % 2 == 0) {
-          proxyGroupElement += `<div class="flex gap-2 justify-around w-full">`;
+          prxGroupElement += `<div class="flex gap-2 justify-around w-full">`;
         }
 
-        proxyGroupElement += `<button class="bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-500 dark:hover:bg-indigo-400 rounded-md p-2 w-full text-white font-semibold transition-colors duration-200" onclick="copyToClipboard('${proxy}')">${indexName[x]}</button>`;
+        prxGroupElement += `<button class="bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-500 dark:hover:bg-indigo-400 rounded-md p-2 w-full text-white font-semibold transition-colors duration-200" onclick="copyToClipboard('${prx}')">${indexName[x]}</button>`;
 
         if (x % 2 == 1) {
-          proxyGroupElement += `</div>`;
+          prxGroupElement += `</div>`;
         }
       }
-      proxyGroupElement += `  </div>`;
-      proxyGroupElement += `</div>`;
+      prxGroupElement += `  </div>`;
+      prxGroupElement += `</div>`;
     }
-    proxyGroupElement += `</div>`;
+    prxGroupElement += `</div>`;
 
-    this.html = this.html.replaceAll("PLACEHOLDER_PROXY_GROUP", `${proxyGroupElement}`);
+    this.html = this.html.replaceAll("PLACEHOLDER_PROXY_GROUP", `${prxGroupElement}`);
   }
 
   buildCountryFlag() {
-    const proxyBankUrl = this.url.searchParams.get("proxy-list");
+    const prxBankUrl = this.url.searchParams.get("prx-list");
     const flagList = [];
-    for (const proxy of cachedProxyList) {
-      flagList.push(proxy.country);
+    for (const prx of cachedPrxList) {
+      flagList.push(prx.country);
     }
 
     let flagElement = "";
     for (const flag of new Set(flagList)) {
       flagElement += `<a href="/sub?cc=${flag}${
-        proxyBankUrl ? "&proxy-list=" + proxyBankUrl : ""
+        prxBankUrl ? "&prx-list=" + prxBankUrl : ""
       }" class="py-1" ><img width=20 src="https://hatscripts.github.io/circle-flags/flags/${flag.toLowerCase()}.svg" /></a>`;
     }
 
@@ -1668,7 +1627,7 @@ class Document {
   }
 
   build() {
-    this.buildProxyGroup();
+    this.buildPrxGroup();
     this.buildCountryFlag();
 
     this.html = this.html.replaceAll("PLACEHOLDER_API_READY", isApiReady ? "block" : "hidden");
