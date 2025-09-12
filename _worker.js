@@ -3,12 +3,12 @@ import { connect } from "cloudflare:sockets";
 // import { Buffer } from "node:buffer";
 
 // Variables
-const rootDomain = "nettunnels.workers.dev"; // Ganti dengan domain utama kalian
+const rootDomain = "toping.my.id"; // Ganti dengan domain utama kalian
 const serviceName = "privatevpn"; // Ganti dengan nama workers kalian
-const apiKey = "mvC2e-H3KgO_FdUMH_gwMZGGGPG4eITZz7kogMKn"; // Ganti dengan Global API key kalian (https://dash.cloudflare.com/profile/api-tokens)
+const apiKey = "X9YdaJ1RFvDEEfnNseL0DSnyLB-M7uUSavTwJajZ"; // Ganti dengan Global API key kalian (https://dash.cloudflare.com/profile/api-tokens)
 const apiEmail = "sis1733@gmail.com"; // Ganti dengan email yang kalian gunakan
 const accountID = "337c37587f708748ebc8022d43427206"; // Ganti dengan Account ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
-const zoneID = ""; // Ganti dengan Zone ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
+const zoneID = "a0a61277c7d794257ed581c4aaf3cfe1"; // Ganti dengan Zone ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
 let isApiReady = false;
 let prxIP = "";
 let cachedPrxList = [];
