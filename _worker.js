@@ -5,7 +5,7 @@ import { connect } from "cloudflare:sockets";
 // Variables
 const rootDomain = "toping.my.id"; // Ganti dengan domain utama kalian
 const serviceName = "privatevpn"; // Ganti dengan nama workers kalian
-const apiKey = "X9YdaJ1RFvDEEfnNseL0DSnyLB-M7uUSavTwJajZ"; // Ganti dengan Global API key kalian (https://dash.cloudflare.com/profile/api-tokens)
+const apiKey = "05e2fead943340082b40dff507198b284a14c"; // Ganti dengan Global API key kalian (https://dash.cloudflare.com/profile/api-tokens)
 const apiEmail = "sis1733@gmail.com"; // Ganti dengan email yang kalian gunakan
 const accountID = "337c37587f708748ebc8022d43427206"; // Ganti dengan Account ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
 const zoneID = "a0a61277c7d794257ed581c4aaf3cfe1"; // Ganti dengan Zone ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
