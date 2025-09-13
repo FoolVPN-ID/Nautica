@@ -12,5 +12,9 @@
   "dependencies": {
     "@types/node": "^22.10.2",
     "javascript-obfuscator": "^4.1.1"
+  },
+  "scripts": {
+    "build:obfuscate": "javascript-obfuscator _workers.js --output workers.js --compact true --control-flow-flattening true",
+    "check:proxy": "bun run ./helper/proxyip.ts"
   }
 }
