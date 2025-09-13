@@ -1493,6 +1493,8 @@
 36.95.152.58,12137,ID,PT Telekomunikasi Indonesia
 203.194.112.119,2053,ID,CV. Rumahweb Indonesia
 203.194.112.119,8443,ID,CV. Rumahweb Indonesia
+206.84.101.83,8443,ID,Mitra Visioner
+156.244.1.250,8443,ID,Kaopu Cloud
 40.113.60.248,2053,IE,Microsoft Corporation
 40.113.60.248,8443,IE,Microsoft Corporation
 34.253.234.62,443,IE,Amazon Data Services Ireland Limited
