@@ -3,12 +3,12 @@ import { connect } from "cloudflare:sockets";
 // import { Buffer } from "node:buffer";
 
 // Variables
-const rootDomain = "pulsacell.my.id"; // Ganti dengan domain utama kalian
+const rootDomain = "bokep-viral.biz.id"; // Ganti dengan domain utama kalian
 const serviceName = "babi"; // Ganti dengan nama workers kalian
 const apiKey = "a4KBAIUGBOYyJH3pRPtQYJsAs8CUPhEkMQ7NUPjd"; // Ganti dengan Global API key kalian (https://dash.cloudflare.com/profile/api-tokens)
-const apiEmail = "putraprawangsa77@gmail.com"; // Ganti dengan email yang kalian gunakan
-const accountID = "ae37c975dccf5c6bc9eeacc7a6656351"; // Ganti dengan Account ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
-const zoneID = "9ca8fd3d28f78c82cb5d6d5e2a6a6b50"; // Ganti dengan Zone ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
+const apiEmail = "putraprawangsa0@gmail.com"; // Ganti dengan email yang kalian gunakan
+const accountID = "0f6b33c01913bd0529e8b028fb750727"; // Ganti dengan Account ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
+const zoneID = "56c058e8966365bf69af65859e6ac5cb"; // Ganti dengan Zone ID kalian (https://dash.cloudflare.com -> Klik domain yang kalian gunakan)
 let isApiReady = false;
 let proxyIP = "";
 let cachedProxyList = [];
