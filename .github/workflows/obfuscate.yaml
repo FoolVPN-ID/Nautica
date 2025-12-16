@@ -5,19 +5,33 @@ on:
   push:
     paths:
       - "_worker.js"
+    branches:
+      - main
+      - testing
+
 jobs:
-  scanner:
+  obfuscate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GIT_TOKEN }}
-      - name: Use Bun
+          fetch-depth: 0
+
+      - name: Setup Bun
         uses: oven-sh/setup-bun@v2
-      - name: Obfuscate
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Obfuscate worker code
         run: |
-          bun install
           bunx javascript-obfuscator _worker.js --output worker.js \
           --compact true \
           --control-flow-flattening true \
@@ -31,11 +45,35 @@ jobs:
           --string-array-threshold 1 \
           --transform-object-keys true \
           --unicode-escape-sequence true
-      - name: Publish Result
-        if: ${{ success() }}
+
+      - name: Verify obfuscation
         run: |
-          git config --global user.name "Github Actions"
+          if [ ! -f worker.js ]; then
+            echo "::error::Obfuscation failed - worker.js not generated"
+            exit 1
+          fi
+          SIZE=$(stat -f%z worker.js 2>/dev/null || stat -c%s worker.js)
+          echo "::notice::Generated worker.js (${SIZE} bytes)"
+
+      - name: Commit and push changes
+        if: success()
+        run: |
+          git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
+          
+          # Check if there are changes
+          if git diff --quiet worker.js; then
+            echo "::notice::No changes to worker.js, skipping commit"
+            exit 0
+          fi
+          
           git add worker.js
-          git commit -m "Upload obfuscated worker"
-          git push origin main --force
+          git commit -m "chore: update obfuscated worker [skip ci]"
+          
+          # Push to current branch (not hardcoded to main)
+          git push origin HEAD:${{ github.ref_name }}
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Obfuscation workflow failed on branch ${{ github.ref_name }}"
