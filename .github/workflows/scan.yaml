@@ -3,28 +3,69 @@ name: Proxy Scanner
 on:
   workflow_dispatch:
   schedule:
+    # Run every 6 hours
     - cron: "0 */6 * * *"
 
 jobs:
   scanner:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     concurrency:
-      group: proxy-scan
+      group: proxy-scan-${{ github.ref_name }}
+      cancel-in-progress: false
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GIT_TOKEN }}
-      - name: Use Bun
+          fetch-depth: 0
+
+      - name: Setup Bun
         uses: oven-sh/setup-bun@v2
-      - name: Start Scan
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run proxy scanner
+        run: bun run ./helper/proxyip.ts
+        timeout-minutes: 30
+
+      - name: Check for changes
+        id: check_changes
         run: |
-          bun install && bun run ./helper/proxyip.ts
-      - name: Publish Result
-        if: ${{ success() }}
+          if git diff --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "::notice::No proxy updates found"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            CHANGED=$(git diff --name-only | wc -l)
+            echo "::notice::Found updates in ${CHANGED} file(s)"
+          fi
+
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.has_changes == 'true'
         run: |
-          git config --global user.name "Github Actions"
+          git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
+          
+          # Add all changed files
           git add .
-          git commit -m "Update proxyip"
-          git push origin main --force
+          
+          # Commit with timestamp
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          git commit -m "chore: update proxy list - ${TIMESTAMP} [skip ci]"
+          
+          # Push to current branch (not hardcoded to main)
+          git push origin HEAD:${{ github.ref_name }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Proxy Scanner Results" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Changes**: ${{ steps.check_changes.outputs.has_changes || 'N/A' }}" >> $GITHUB_STEP_SUMMARY
