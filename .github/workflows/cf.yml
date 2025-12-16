@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.3.0
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.GIT_REF }}
           fetch-depth: 0
@@ -62,19 +62,24 @@ jobs:
           WENV: 'prod'
           COMMIT_SHA: ${{ github.sha }}
 
-        # npm (and node16) are installed by wrangler-action in a pre-job setup
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
       - name: 🏗 Get dependencies
-        run: npm i
+        run: npm ci
 
       - name: 📚 Wrangler publish
         # github.com/cloudflare/wrangler-action
-        uses: cloudflare/wrangler-action@2.0.0
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
           # input overrides env-defaults, regardless
           environment: ${{ env.WORKERS_ENV }}
         env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           GIT_COMMIT_ID: ${{ env.GIT_REF }}
 
       - name: 🎤 Notice
