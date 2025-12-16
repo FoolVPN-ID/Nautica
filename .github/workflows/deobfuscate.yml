@@ -1,0 +1,144 @@
+name: Deobfuscate Code
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_file:
+        description: 'File to deobfuscate'
+        required: true
+        default: 'worker.js'
+        type: choice
+        options:
+          - worker.js
+          - _worker.js
+      output_file:
+        description: 'Output filename'
+        required: true
+        default: 'deobfuscated.js'
+        type: string
+      commit_result:
+        description: 'Commit deobfuscated file to repo'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  deobfuscate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GIT_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          bun install
+          npm install -g js-beautify
+
+      - name: Verify source file exists
+        run: |
+          if [ ! -f "${{ github.event.inputs.source_file }}" ]; then
+            echo "::error::Source file ${{ github.event.inputs.source_file }} not found"
+            exit 1
+          fi
+          SIZE=$(stat -f%z "${{ github.event.inputs.source_file }}" 2>/dev/null || stat -c%s "${{ github.event.inputs.source_file }}")
+          echo "::notice::Deobfuscating ${{ github.event.inputs.source_file }} (${SIZE} bytes)"
+
+      - name: Deobfuscate with js-beautify
+        run: |
+          js-beautify \
+            --type js \
+            --indent-size 2 \
+            --indent-char " " \
+            --preserve-newlines \
+            --max-preserve-newlines 2 \
+            --brace-style collapse \
+            --keep-array-indentation \
+            --keep-function-indentation \
+            --space-before-conditional \
+            --unescape-strings \
+            --wrap-line-length 0 \
+            "${{ github.event.inputs.source_file }}" \
+            > "${{ github.event.inputs.output_file }}"
+
+      - name: Post-process deobfuscation
+        run: |
+          # Additional cleanup with sed
+          sed -i 's/;/;\n/g' "${{ github.event.inputs.output_file }}"
+          sed -i 's/{/\n{\n/g' "${{ github.event.inputs.output_file }}"
+          sed -i 's/}/\n}\n/g' "${{ github.event.inputs.output_file }}"
+          
+          # Re-beautify after sed processing
+          js-beautify --replace "${{ github.event.inputs.output_file }}"
+
+      - name: Generate report
+        run: |
+          ORIGINAL_SIZE=$(stat -f%z "${{ github.event.inputs.source_file }}" 2>/dev/null || stat -c%s "${{ github.event.inputs.source_file }}")
+          DEOBF_SIZE=$(stat -f%z "${{ github.event.inputs.output_file }}" 2>/dev/null || stat -c%s "${{ github.event.inputs.output_file }}")
+          ORIGINAL_LINES=$(wc -l < "${{ github.event.inputs.source_file }}")
+          DEOBF_LINES=$(wc -l < "${{ github.event.inputs.output_file }}")
+          
+          echo "### Deobfuscation Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Original | Deobfuscated | Change |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|----------|--------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| File | ${{ github.event.inputs.source_file }} | ${{ github.event.inputs.output_file }} | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Size (bytes) | ${ORIGINAL_SIZE} | ${DEOBF_SIZE} | $(echo "scale=1; ($DEOBF_SIZE - $ORIGINAL_SIZE) * 100 / $ORIGINAL_SIZE" | bc)% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lines | ${ORIGINAL_LINES} | ${DEOBF_LINES} | +$((DEOBF_LINES - ORIGINAL_LINES)) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deobfuscation completed successfully" >> $GITHUB_STEP_SUMMARY
+          
+          # Also create a text report
+          cat > deobfuscate_report.txt <<EOF
+Deobfuscation Report
+====================
+Date: $(date -u +"%Y-%m-%d %H:%M UTC")
+Branch: ${{ github.ref_name }}
+Source: ${{ github.event.inputs.source_file }} (${ORIGINAL_SIZE} bytes, ${ORIGINAL_LINES} lines)
+Output: ${{ github.event.inputs.output_file }} (${DEOBF_SIZE} bytes, ${DEOBF_LINES} lines)
+Status: Success
+EOF
+
+      - name: Upload deobfuscated file
+        uses: actions/upload-artifact@v4
+        with:
+          name: deobfuscated-code-${{ github.run_number }}
+          path: |
+            ${{ github.event.inputs.output_file }}
+            deobfuscate_report.txt
+          retention-days: 30
+
+      - name: Commit deobfuscated file
+        if: github.event.inputs.commit_result == 'true'
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          git add "${{ github.event.inputs.output_file }}" deobfuscate_report.txt
+          git commit -m "chore: add deobfuscated code from ${{ github.event.inputs.source_file }} [skip ci]"
+          git push origin HEAD:${{ github.ref_name }}
+
+      - name: Success notification
+        if: success()
+        run: |
+          echo "::notice::✅ Deobfuscation complete! Download artifact or check committed files."
+
+      - name: Failure notification
+        if: failure()
+        run: |
+          echo "::error::❌ Deobfuscation failed. Check logs for details."
