@@ -117,19 +117,9 @@ jobs:
         run: |
           echo "::group::Smoke Test"
           
-          # Get worker name from wrangler.toml
-          WORKER_NAME=$(grep -E '^name\s*=' wrangler.toml | sed -E 's/.*"([^"]+)".*/\1/' || echo "")
-          
-          if [ -z "$WORKER_NAME" ]; then
-            echo "::warning::Could not determine worker name from wrangler.toml"
-            echo "::warning::Skipping smoke test - please verify deployment manually"
-            echo "::endgroup::"
-            exit 0
-          fi
-          
-          # Construct worker URL
-          WORKER_URL="https://${WORKER_NAME}.workers.dev"
-          echo "🔗 Testing: $WORKER_URL"
+          # Test custom domain from wrangler.toml
+          WORKER_URL="https://hoshiyomi.qzz.io"
+          echo "🔗 Testing custom domain: $WORKER_URL"
           
           # Wait for deployment to propagate
           echo "⏳ Waiting 10 seconds for deployment to propagate..."
@@ -149,11 +139,14 @@ jobs:
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$WORKER_URL/api/v1/myip" --max-time 10 || echo "000")
           if [ "$HTTP_CODE" -eq 200 ]; then
             echo "✅ API endpoint: HTTP $HTTP_CODE"
+            # Show actual response
+            RESPONSE=$(curl -s "$WORKER_URL/api/v1/myip" --max-time 10 || echo "{}")
+            echo "📊 Response: $RESPONSE"
           else
             echo "::warning::API endpoint: HTTP $HTTP_CODE (may need manual verification)"
           fi
           
-          echo "::notice::💡 Smoke test completed. Please verify your worker manually at: $WORKER_URL"
+          echo "::notice::💡 Smoke test completed. Verify at: $WORKER_URL"
           echo "::endgroup::"
 
       - name: ✅ Deployment complete
@@ -161,4 +154,4 @@ jobs:
           echo "::notice::🎉 Successfully deployed to Cloudflare Workers!"
           echo "::notice::🌿 Branch: ${{ github.ref_name }}"
           echo "::notice::📝 Commit: ${{ github.sha }}"
-          echo "::notice::🔍 Please verify your worker is functioning correctly"
+          echo "::notice::🔗 URL: https://hoshiyomi.qzz.io"
