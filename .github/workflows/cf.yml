@@ -8,10 +8,85 @@ on:
       - testing
 
 jobs:
+  validate:
+    name: 🔍 Validate Worker Code
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🔍 Check JavaScript syntax
+        run: |
+          echo "::group::Syntax Check"
+          node --check _worker.js
+          echo "✅ Syntax check passed"
+          echo "::endgroup::"
+
+      - name: 📏 Check file integrity
+        run: |
+          echo "::group::File Integrity Check"
+          
+          # Check if file is complete (no truncation)
+          if ! tail -1 _worker.js | grep -q '[;}]'; then
+            echo "::error::_worker.js appears truncated (missing closing bracket/semicolon)"
+            exit 1
+          fi
+          
+          # Check file size (should be > 20KB for a complete worker)
+          SIZE=$(stat -f%z _worker.js 2>/dev/null || stat -c%s _worker.js)
+          if [ "$SIZE" -lt 20000 ]; then
+            echo "::error::_worker.js file size too small ($SIZE bytes), possible truncation"
+            exit 1
+          fi
+          
+          echo "✅ File size: $SIZE bytes"
+          echo "✅ File integrity check passed"
+          echo "::endgroup::"
+
+      - name: 🔬 Lint with ESLint (optional)
+        continue-on-error: true
+        run: |
+          echo "::group::ESLint Check"
+          if [ -f ".eslintrc.json" ] || [ -f ".eslintrc.js" ]; then
+            bun run eslint _worker.js || echo "::warning::ESLint found issues (non-blocking)"
+          else
+            echo "::notice::No ESLint config found, skipping linting"
+          fi
+          echo "::endgroup::"
+
+      - name: 🧪 Wrangler dry-run (syntax + config validation)
+        run: |
+          echo "::group::Wrangler Validation"
+          bunx wrangler deploy --dry-run --outdir=./dist
+          echo "✅ Wrangler dry-run passed"
+          echo "::endgroup::"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+
+      - name: ✅ Validation complete
+        run: |
+          echo "::notice::All validation checks passed!"
+          echo "::notice::File: _worker.js"
+          echo "::notice::Branch: ${{ github.ref_name }}"
+
   deploy:
     name: 🚀 Deploy Worker
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: validate  # Only deploy if validation passes
     
     steps:
       - name: 📥 Checkout repository
@@ -35,6 +110,45 @@ jobs:
           wranglerVersion: "4.55.0"
         env:
           GIT_COMMIT_ID: ${{ github.sha }}
+
+      - name: 🧪 Post-deployment smoke test
+        run: |
+          echo "::group::Smoke Test"
+          
+          # Wait for deployment to propagate
+          sleep 5
+          
+          # Get worker URL from wrangler
+          WORKER_URL=$(bunx wrangler deployments list --json 2>/dev/null | jq -r '.[0].url' || echo "")
+          
+          if [ -z "$WORKER_URL" ]; then
+            echo "::warning::Could not determine worker URL, skipping smoke test"
+            exit 0
+          fi
+          
+          echo "Testing: $WORKER_URL"
+          
+          # Test root endpoint
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$WORKER_URL/" || echo "000")
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 500 ]; then
+            echo "✅ Root endpoint returned $HTTP_CODE"
+          else
+            echo "::error::Root endpoint failed with code $HTTP_CODE"
+            exit 1
+          fi
+          
+          # Test API endpoint
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$WORKER_URL/api/v1/myip" || echo "000")
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ API endpoint returned $HTTP_CODE"
+          else
+            echo "::warning::API endpoint returned $HTTP_CODE (non-critical)"
+          fi
+          
+          echo "::endgroup::"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
 
       - name: ✅ Deployment complete
         run: |
