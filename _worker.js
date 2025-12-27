@@ -449,7 +449,8 @@ async function websocketHandler(request) {
             return;
           }
 
-          const protocol = await protocolSniffer(chunk);
+          // OPTIMIZATION 1: Remove unnecessary async/await
+          const protocol = protocolSniffer(chunk);
           let protocolHeader;
 
           if (protocol === PROTOCOL_HORSE) {
@@ -522,7 +523,8 @@ async function websocketHandler(request) {
   });
 }
 
-async function protocolSniffer(buffer) {
+// OPTIMIZATION 1: Remove async since this function is synchronous
+function protocolSniffer(buffer) {
   if (buffer.byteLength >= 62) {
     const horseDelimiter = new Uint8Array(buffer.slice(56, 60));
     if (horseDelimiter[0] === 0x0d && horseDelimiter[1] === 0x0a) {
