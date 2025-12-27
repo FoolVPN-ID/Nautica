@@ -271,7 +271,6 @@ export default {
           const uuid = crypto.randomUUID();
           const result = [];
           
-          // OPTIMIZATION 3: Reuse single URL object and optimize loop
           let configCount = 0;
           
           // Create base URL once
@@ -283,13 +282,11 @@ export default {
           for (const prx of prxList) {
             if (configCount >= filterLimit) break;
             
-            // Reuse path for this proxy
             const proxyPath = `/${prx.prxIP}-${prx.prxPort}`;
 
             for (const port of filterPort) {
               if (configCount >= filterLimit) break;
               
-              // Pre-compute port-dependent values
               const isTLS = port === 443;
               const security = isTLS ? "tls" : "none";
               const tlsLabel = isTLS ? "TLS" : "NTLS";
@@ -297,7 +294,6 @@ export default {
               for (const protocol of filterVPN) {
                 if (configCount >= filterLimit) break;
 
-                // Modify existing URL object instead of creating new one
                 baseUri.protocol = protocol;
                 baseUri.port = port.toString();
                 baseUri.searchParams.set("security", security);
@@ -317,7 +313,6 @@ export default {
                 baseUri.searchParams.set("sni", (port === 80 && protocol === PROTOCOL_FLASH) ? "" : APP_DOMAIN);
                 baseUri.hash = `${configCount + 1} ${getFlagEmoji(prx.country)} ${prx.org} WS ${tlsLabel} [${serviceName}]`;
                 
-                // Clone URL string (not the object)
                 result.push(baseUri.toString());
                 configCount++;
               }
@@ -340,10 +335,12 @@ export default {
           switch (filterFormat) {
             case "raw":
               finalResult = result.join("\n");
+              responseHeaders["Content-Type"] = "text/plain; charset=utf-8";
               responseHeaders["Cache-Control"] = "public, max-age=1800, s-maxage=3600";
               break;
             case PROTOCOL_V2:
               finalResult = btoa(result.join("\n"));
+              responseHeaders["Content-Type"] = "text/plain; charset=utf-8";
               responseHeaders["Cache-Control"] = "public, max-age=1800, s-maxage=3600";
               break;
             case PROTOCOL_NEKO:
@@ -366,17 +363,26 @@ export default {
               ]).catch(err => {
                 return new Response(JSON.stringify({ error: "Converter service timeout" }), {
                   status: 504,
-                  headers: { ...CORS_HEADER_OPTIONS },
+                  headers: { 
+                    ...CORS_HEADER_OPTIONS,
+                    "Content-Type": "application/json"
+                  },
                 });
               });
 
               if (res.status == 200) {
                 finalResult = await res.text();
+                // Preserve Content-Type from converter
+                const contentType = res.headers.get("Content-Type") || "text/plain; charset=utf-8";
+                responseHeaders["Content-Type"] = contentType;
                 responseHeaders["Cache-Control"] = "public, max-age=1800, s-maxage=3600";
               } else {
                 return new Response(res.statusText, {
                   status: res.status,
-                  headers: { ...CORS_HEADER_OPTIONS },
+                  headers: { 
+                    ...CORS_HEADER_OPTIONS,
+                    "Content-Type": "text/plain; charset=utf-8"
+                  },
                 });
               }
               break;
@@ -415,6 +421,7 @@ export default {
         status: 500,
         headers: {
           ...CORS_HEADER_OPTIONS,
+          "Content-Type": "text/plain; charset=utf-8",
         },
       });
     }
