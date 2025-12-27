@@ -194,6 +194,13 @@ export default {
       APP_DOMAIN = url.hostname;
       serviceName = APP_DOMAIN.split(".")[0];
 
+      // Handle OPTIONS preflight
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          headers: CORS_HEADER_OPTIONS,
+        });
+      }
+
       // Dynamic URL configuration with env fallbacks
       const SUB_PAGE_URL = env.SUB_PAGE_URL || `https://${APP_DOMAIN}/sub`;
       const KV_PRX_URL = env.KV_PRX_URL || `https://raw.githubusercontent.com/hoshiyomiX/LastRite/refs/heads/main/kvProxyList.json`;
@@ -239,12 +246,13 @@ export default {
 
           const prxBankUrl = url.searchParams.get("prx-list") || PRX_BANK_URL;
           
-          // Parallel fetch for KV and proxy list
-          const [prxListResult] = await Promise.all([
-            getPrxListPaginated(prxBankUrl, { offset, limit: filterLimit, filterCC }, env)
-          ]);
+          // Get paginated proxy list
+          const { data: prxList, pagination } = await getPrxListPaginated(
+            prxBankUrl,
+            { offset, limit: filterLimit, filterCC },
+            env
+          );
 
-          const { data: prxList, pagination } = prxListResult;
           const uuid = crypto.randomUUID();
           const result = [];
           
@@ -376,16 +384,47 @@ export default {
         }
       }
 
-      const targetReversePrx = env.REVERSE_PRX_TARGET || "example.com";
-      return await reverseWeb(request, targetReversePrx);
+      // Default: reverse proxy or simple response
+      const targetReversePrx = env.REVERSE_PRX_TARGET;
+      if (targetReversePrx) {
+        return await reverseWeb(request, targetReversePrx);
+      }
+      
+      // Fallback response
+      return new Response(
+        JSON.stringify({
+          service: "LastRite VPN Proxy",
+          status: "running",
+          endpoints: {
+            subscription: "/api/v1/sub",
+            myip: "/api/v1/myip",
+            websocket: "/{proxy-ip}:{port}"
+          },
+          documentation: "https://github.com/hoshiyomiX/LastRite"
+        }),
+        {
+          status: 200,
+          headers: {
+            ...CORS_HEADER_OPTIONS,
+            "Content-Type": "application/json",
+          },
+        }
+      );
     } catch (err) {
       console.error("Worker error:", err);
-      return new Response(`An error occurred: ${err.toString()}`, {
-        status: 500,
-        headers: {
-          ...CORS_HEADER_OPTIONS,
-        },
-      });
+      return new Response(
+        JSON.stringify({
+          error: err.message || err.toString(),
+          timestamp: new Date().toISOString()
+        }),
+        {
+          status: 500,
+          headers: {
+            ...CORS_HEADER_OPTIONS,
+            "Content-Type": "application/json",
+          },
+        }
+      );
     }
   },
 };
