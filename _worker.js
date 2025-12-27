@@ -5,36 +5,29 @@ let serviceName = "";
 let APP_DOMAIN = "";
 
 let prxIP = "";
-let cachedPrxList = [];
-let cacheTimestamp = 0;
+
+// In-memory cache with unified structure
+const inMemoryCache = {
+  prxList: { data: null, timestamp: 0 },
+  kvPrxList: { data: null, timestamp: 0 }
+};
 const CACHE_TTL = 3600000; // 1 hour in milliseconds
 
-// Constant
-const horse = "dHJvamFu";
-const flash = "dm1lc3M=";
-const v2 = "djJyYXk=";
-const neko = "Y2xhc2g=";
-
-// Pre-computed constants (optimization)
-const PROTOCOL_HORSE = atob(horse);
-const PROTOCOL_FLASH = atob(flash);
-const PROTOCOL_V2 = atob(v2);
-const PROTOCOL_NEKO = atob(neko);
+// Protocol constants (removed base64 obfuscation)
+const PROTOCOL_HORSE = "trojan";
+const PROTOCOL_FLASH = "vmess";
+const PROTOCOL_V2 = "v2ray";
+const PROTOCOL_NEKO = "clash";
 const UUID_V4_REGEX = /^[0-9a-f]{8}[0-9a-f]{4}4[0-9a-f]{3}[89ab][0-9a-f]{3}[0-9a-f]{12}$/i;
 
 const PORTS = [443, 80];
 const PROTOCOLS = [PROTOCOL_HORSE, PROTOCOL_FLASH, "ss"];
-const SUB_PAGE_URL = "https://foolvpn.web.id/nautica";
-const KV_PRX_URL = "https://raw.githubusercontent.com/FoolVPN-ID/Nautica/refs/heads/main/kvProxyList.json";
-const PRX_BANK_URL = "https://raw.githubusercontent.com/FoolVPN-ID/Nautica/refs/heads/main/proxyList.txt";
 const DNS_SERVER_ADDRESS = "8.8.8.8";
 const DNS_SERVER_PORT = 53;
 const RELAY_SERVER_UDP = {
   host: "udp-relay.hobihaus.space",
   port: 7300,
 };
-const PRX_HEALTH_CHECK_API = "https://id1.foolvpn.web.id/api/v1/check";
-const CONVERTER_URL = "https://api.foolvpn.web.id/convert";
 const WS_READY_STATE_OPEN = 1;
 const WS_READY_STATE_CLOSING = 2;
 const CORS_HEADER_OPTIONS = {
@@ -47,41 +40,66 @@ const CORS_HEADER_OPTIONS = {
 const CONNECTION_TIMEOUT_MS = 25000; // 25 seconds
 const MAX_CONFIGS_PER_REQUEST = 20; // Pagination limit
 
-async function getKVPrxList(kvPrxUrl = KV_PRX_URL, env) {
+// Unified cache getter with proper hierarchy: in-memory -> KV -> fetch
+async function getCachedData(cacheKey, fetchFn, ttl, env) {
+  const now = Date.now();
+  
+  // 1. Check in-memory cache first
+  if (inMemoryCache[cacheKey]?.data && (now - inMemoryCache[cacheKey].timestamp) < ttl) {
+    return inMemoryCache[cacheKey].data;
+  }
+  
+  // 2. Check KV cache
+  if (env?.KV_CACHE) {
+    try {
+      const cached = await env.KV_CACHE.get(cacheKey, "json");
+      if (cached) {
+        inMemoryCache[cacheKey] = { data: cached, timestamp: now };
+        return cached;
+      }
+    } catch (err) {
+      console.error(`KV cache read error for ${cacheKey}:`, err);
+    }
+  }
+  
+  // 3. Fetch fresh data
+  const data = await fetchFn();
+  inMemoryCache[cacheKey] = { data, timestamp: now };
+  
+  // 4. Store in KV for future requests
+  if (env?.KV_CACHE) {
+    try {
+      await env.KV_CACHE.put(cacheKey, JSON.stringify(data), {
+        expirationTtl: Math.floor(ttl / 1000),
+      });
+    } catch (err) {
+      console.error(`KV cache write error for ${cacheKey}:`, err);
+    }
+  }
+  
+  return data;
+}
+
+async function getKVPrxList(kvPrxUrl, env) {
   if (!kvPrxUrl) {
     throw new Error("No URL Provided!");
   }
 
-  // Try KV cache first
-  if (env?.KV_CACHE) {
-    const cached = await env.KV_CACHE.get("kv_prx_list", "json");
-    if (cached) {
-      return cached;
-    }
-  }
-
-  const kvPrx = await fetch(kvPrxUrl);
-  if (kvPrx.status == 200) {
-    const data = await kvPrx.json();
-    
-    // Cache for future requests
-    if (env?.KV_CACHE) {
-      await env.KV_CACHE.put("kv_prx_list", JSON.stringify(data), {
-        expirationTtl: 3600, // 1 hour
-      });
-    }
-    
-    return data;
-  } else {
-    return {};
-  }
+  return getCachedData(
+    "kvPrxList",
+    async () => {
+      const kvPrx = await fetch(kvPrxUrl);
+      if (kvPrx.status === 200) {
+        return await kvPrx.json();
+      }
+      return {};
+    },
+    CACHE_TTL,
+    env
+  );
 }
 
-async function getPrxListPaginated(prxBankUrl = PRX_BANK_URL, options = {}, env) {
-  /**
-   * Format: <IP>,<Port>,<Country ID>,<ORG>
-   * Streaming parser with pagination support
-   */
+async function getPrxListPaginated(prxBankUrl, options = {}, env) {
   if (!prxBankUrl) {
     throw new Error("No URL Provided!");
   }
@@ -92,51 +110,33 @@ async function getPrxListPaginated(prxBankUrl = PRX_BANK_URL, options = {}, env)
     filterCC = [],
   } = options;
 
-  // Check in-memory cache with TTL
-  const now = Date.now();
-  if (cachedPrxList.length > 0 && (now - cacheTimestamp) < CACHE_TTL) {
-    return paginateArray(cachedPrxList, offset, limit, filterCC);
-  }
+  const prxList = await getCachedData(
+    "prxList",
+    async () => {
+      const prxBank = await fetch(prxBankUrl);
+      if (prxBank.status === 200) {
+        const text = (await prxBank.text()) || "";
+        const prxString = text.split("\n").filter(Boolean);
+        
+        return prxString
+          .map((entry) => {
+            const [prxIP, prxPort, country, org] = entry.split(",");
+            return {
+              prxIP: prxIP || "Unknown",
+              prxPort: prxPort || "Unknown",
+              country: country || "Unknown",
+              org: org || "Unknown Org",
+            };
+          })
+          .filter(Boolean);
+      }
+      return [];
+    },
+    CACHE_TTL,
+    env
+  );
 
-  // Try KV cache
-  if (env?.KV_CACHE) {
-    const cached = await env.KV_CACHE.get("prx_list", "json");
-    if (cached) {
-      cachedPrxList = cached;
-      cacheTimestamp = now;
-      return paginateArray(cachedPrxList, offset, limit, filterCC);
-    }
-  }
-
-  // Fetch and parse (only if not cached)
-  const prxBank = await fetch(prxBankUrl);
-  if (prxBank.status == 200) {
-    const text = (await prxBank.text()) || "";
-    const prxString = text.split("\n").filter(Boolean);
-    
-    cachedPrxList = prxString
-      .map((entry) => {
-        const [prxIP, prxPort, country, org] = entry.split(",");
-        return {
-          prxIP: prxIP || "Unknown",
-          prxPort: prxPort || "Unknown",
-          country: country || "Unknown",
-          org: org || "Unknown Org",
-        };
-      })
-      .filter(Boolean);
-    
-    cacheTimestamp = now;
-
-    // Store in KV for cross-request caching
-    if (env?.KV_CACHE) {
-      await env.KV_CACHE.put("prx_list", JSON.stringify(cachedPrxList), {
-        expirationTtl: 3600, // 1 hour
-      });
-    }
-  }
-
-  return paginateArray(cachedPrxList, offset, limit, filterCC);
+  return paginateArray(prxList, offset, limit, filterCC);
 }
 
 function paginateArray(array, offset, limit, filterCC) {
@@ -194,6 +194,12 @@ export default {
       APP_DOMAIN = url.hostname;
       serviceName = APP_DOMAIN.split(".")[0];
 
+      // Dynamic URL configuration with env fallbacks
+      const SUB_PAGE_URL = env.SUB_PAGE_URL || `https://${APP_DOMAIN}/sub`;
+      const KV_PRX_URL = env.KV_PRX_URL || `https://raw.githubusercontent.com/hoshiyomiX/LastRite/refs/heads/main/kvProxyList.json`;
+      const PRX_BANK_URL = env.PRX_BANK_URL || `https://raw.githubusercontent.com/hoshiyomiX/LastRite/refs/heads/main/proxyList.txt`;
+      const CONVERTER_URL = env.CONVERTER_URL || "https://api.foolvpn.web.id/convert";
+
       const upgradeHeader = request.headers.get("Upgrade");
 
       // Handle prx client
@@ -215,44 +221,23 @@ export default {
 
       if (url.pathname.startsWith("/sub")) {
         return Response.redirect(SUB_PAGE_URL + `?host=${APP_DOMAIN}`, 301);
-      } else if (url.pathname.startsWith("/check")) {
-        const target = url.searchParams.get("target").split(":");
-        
-        // Use waitUntil for non-critical health checks
-        const resultPromise = checkPrxHealth(target[0], target[1] || "443");
-        
-        const result = await Promise.race([
-          resultPromise,
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error("Health check timeout")), 5000)
-          ),
-        ]).catch(err => ({ error: err.message }));
-
-        return new Response(JSON.stringify(result), {
-          status: 200,
-          headers: {
-            ...CORS_HEADER_OPTIONS,
-            "Content-Type": "application/json",
-            "Cache-Control": "public, max-age=300", // 5 min cache
-          },
-        });
       } else if (url.pathname.startsWith("/api/v1")) {
         const apiPath = url.pathname.replace("/api/v1", "");
 
         if (apiPath.startsWith("/sub")) {
-          // CRITICAL OPTIMIZATION: Pagination support
+          // Parse query parameters
           const offset = parseInt(url.searchParams.get("offset")) || 0;
           const filterCC = url.searchParams.get("cc")?.split(",") || [];
-          const filterPort = url.searchParams.get("port")?.split(",") || PORTS;
+          const filterPort = url.searchParams.get("port")?.split(",").map(p => parseInt(p)) || PORTS;
           const filterVPN = url.searchParams.get("vpn")?.split(",") || PROTOCOLS;
           const filterLimit = Math.min(
             parseInt(url.searchParams.get("limit")) || MAX_CONFIGS_PER_REQUEST,
-            MAX_CONFIGS_PER_REQUEST // Hard cap
+            MAX_CONFIGS_PER_REQUEST
           );
           const filterFormat = url.searchParams.get("format") || "raw";
           const fillerDomain = url.searchParams.get("domain") || APP_DOMAIN;
 
-          const prxBankUrl = url.searchParams.get("prx-list") || env.PRX_BANK_URL || PRX_BANK_URL;
+          const prxBankUrl = url.searchParams.get("prx-list") || PRX_BANK_URL;
           
           // Get paginated proxy list
           const { data: prxList, pagination } = await getPrxListPaginated(
@@ -264,23 +249,19 @@ export default {
           const uuid = crypto.randomUUID();
           const result = [];
           
-          // OPTIMIZATION: Single loop with early break
+          // OPTIMIZED: Early pagination - generate only requested configs
           let configCount = 0;
+          
+          outerLoop:
           for (const prx of prxList) {
-            if (configCount >= filterLimit) break;
-            
-            const uri = new URL(`${PROTOCOL_HORSE}://${fillerDomain}`);
-            uri.searchParams.set("encryption", "none");
-            uri.searchParams.set("type", "ws");
-            uri.searchParams.set("host", APP_DOMAIN);
-
             for (const port of filterPort) {
-              if (configCount >= filterLimit) break;
-              
               for (const protocol of filterVPN) {
-                if (configCount >= filterLimit) break;
+                if (configCount >= filterLimit) break outerLoop;
 
-                uri.protocol = protocol;
+                const uri = new URL(`${protocol}://${fillerDomain}`);
+                uri.searchParams.set("encryption", "none");
+                uri.searchParams.set("type", "ws");
+                uri.searchParams.set("host", APP_DOMAIN);
                 uri.port = port.toString();
                 
                 if (protocol == "ss") {
@@ -312,6 +293,7 @@ export default {
           let finalResult = "";
           const responseHeaders = {
             ...CORS_HEADER_OPTIONS,
+            "Content-Type": "text/plain; charset=utf-8",
             "X-Pagination-Offset": offset.toString(),
             "X-Pagination-Limit": filterLimit.toString(),
             "X-Pagination-Total": pagination.total.toString(),
@@ -325,45 +307,46 @@ export default {
           switch (filterFormat) {
             case "raw":
               finalResult = result.join("\n");
-              responseHeaders["Cache-Control"] = "public, max-age=1800"; // 30 min
+              responseHeaders["Cache-Control"] = "public, max-age=1800, s-maxage=3600";
               break;
             case PROTOCOL_V2:
               finalResult = btoa(result.join("\n"));
-              responseHeaders["Cache-Control"] = "public, max-age=1800";
+              responseHeaders["Cache-Control"] = "public, max-age=1800, s-maxage=3600";
               break;
             case PROTOCOL_NEKO:
             case "sfa":
             case "bfr":
-              // OPTIMIZATION: Move converter to waitUntil if possible
-              // For now, add timeout protection
-              const converterPromise = fetch(CONVERTER_URL, {
-                method: "POST",
-                body: JSON.stringify({
-                  url: result.join(","),
-                  format: filterFormat,
-                  template: "cf",
-                }),
-              });
+              try {
+                const converterPromise = fetch(CONVERTER_URL, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    url: result.join(","),
+                    format: filterFormat,
+                    template: "cf",
+                  }),
+                });
 
-              const res = await Promise.race([
-                converterPromise,
-                new Promise((_, reject) =>
-                  setTimeout(() => reject(new Error("Converter timeout")), 8000)
-                ),
-              ]).catch(err => {
+                const res = await Promise.race([
+                  converterPromise,
+                  new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error("Converter timeout")), 8000)
+                  ),
+                ]);
+
+                if (res.status == 200) {
+                  finalResult = await res.text();
+                  responseHeaders["Cache-Control"] = "public, max-age=1800, s-maxage=3600";
+                } else {
+                  return new Response(res.statusText, {
+                    status: res.status,
+                    headers: { ...CORS_HEADER_OPTIONS },
+                  });
+                }
+              } catch (err) {
                 return new Response(JSON.stringify({ error: "Converter service timeout" }), {
                   status: 504,
-                  headers: { ...CORS_HEADER_OPTIONS },
-                });
-              });
-
-              if (res.status == 200) {
-                finalResult = await res.text();
-                responseHeaders["Cache-Control"] = "public, max-age=1800";
-              } else {
-                return new Response(res.statusText, {
-                  status: res.status,
-                  headers: { ...CORS_HEADER_OPTIONS },
+                  headers: { ...CORS_HEADER_OPTIONS, "Content-Type": "application/json" },
                 });
               }
               break;
@@ -386,7 +369,8 @@ export default {
             {
               headers: {
                 ...CORS_HEADER_OPTIONS,
-                "Cache-Control": "private, max-age=60",
+                "Content-Type": "application/json",
+                "Cache-Control": "private, max-age=0, no-cache",
               },
             }
           );
@@ -449,7 +433,7 @@ async function websocketHandler(request) {
             return;
           }
 
-          const protocol = await protocolSniffer(chunk);
+          const protocol = protocolSniffer(chunk);
           let protocolHeader;
 
           if (protocol === PROTOCOL_HORSE) {
@@ -522,7 +506,8 @@ async function websocketHandler(request) {
   });
 }
 
-async function protocolSniffer(buffer) {
+// Removed async - no async operations inside
+function protocolSniffer(buffer) {
   if (buffer.byteLength >= 62) {
     const horseDelimiter = new Uint8Array(buffer.slice(56, 60));
     if (horseDelimiter[0] === 0x0d && horseDelimiter[1] === 0x0a) {
@@ -535,12 +520,11 @@ async function protocolSniffer(buffer) {
   }
 
   const flashDelimiter = new Uint8Array(buffer.slice(1, 17));
-  // OPTIMIZATION: Use pre-compiled regex
   if (UUID_V4_REGEX.test(arrayBufferToHex(flashDelimiter))) {
     return PROTOCOL_FLASH;
   }
 
-  return "ss"; // default
+  return "ss";
 }
 
 async function handleTCPOutBound(
@@ -553,7 +537,6 @@ async function handleTCPOutBound(
   log
 ) {
   async function connectAndWrite(address, port) {
-    // CRITICAL: Add connection timeout
     const connectPromise = new Promise(async (resolve, reject) => {
       try {
         const tcpSocket = connect({
@@ -611,7 +594,6 @@ async function handleUDPOutbound(targetAddress, targetPort, dataChunk, webSocket
   try {
     let protocolHeader = responseHeader;
 
-    // CRITICAL: Add timeout for UDP relay connection
     const connectPromise = new Promise(async (resolve, reject) => {
       try {
         const tcpSocket = connect({
@@ -914,7 +896,6 @@ async function remoteSocketToWS(remoteSocket, webSocket, responseHeader, retry, 
   let header = responseHeader;
   let hasIncomingData = false;
   
-  // CRITICAL: Add timeout for socket read operations
   const timeoutPromise = new Promise((_, reject) =>
     setTimeout(() => reject(new Error("Socket read timeout")), CONNECTION_TIMEOUT_MS)
   );
@@ -965,11 +946,6 @@ function safeCloseWebSocket(socket) {
   } catch (error) {
     console.error("safeCloseWebSocket error", error);
   }
-}
-
-async function checkPrxHealth(prxIP, prxPort) {
-  const req = await fetch(`${PRX_HEALTH_CHECK_API}?ip=${prxIP}:${prxPort}`);
-  return await req.json();
 }
 
 // Helpers
