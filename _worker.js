@@ -51,7 +51,6 @@ const CORS_HEADER_OPTIONS = {
 const CONNECTION_TIMEOUT_MS = 25000; // 25 seconds
 const MAX_CONFIGS_PER_REQUEST = 20; // Pagination limit
 
-// OPTIMIZATION 2: Unified cache getter with proper hierarchy
 async function getCachedData(cacheKey, fetchFn, ttl, env) {
   const now = Date.now();
   
@@ -252,7 +251,7 @@ export default {
         if (apiPath.startsWith("/sub")) {
           const offset = parseInt(url.searchParams.get("offset")) || 0;
           const filterCC = url.searchParams.get("cc")?.split(",") || [];
-          const filterPort = url.searchParams.get("port")?.split(",") || PORTS;
+          const filterPort = url.searchParams.get("port")?.split(",").map(p => parseInt(p)) || PORTS;
           const filterVPN = url.searchParams.get("vpn")?.split(",") || PROTOCOLS;
           const filterLimit = Math.min(
             parseInt(url.searchParams.get("limit")) || MAX_CONFIGS_PER_REQUEST,
@@ -272,45 +271,54 @@ export default {
           const uuid = crypto.randomUUID();
           const result = [];
           
+          // OPTIMIZATION 3: Reuse single URL object and optimize loop
           let configCount = 0;
+          
+          // Create base URL once
+          const baseUri = new URL(`${PROTOCOL_HORSE}://${fillerDomain}`);
+          baseUri.searchParams.set("encryption", "none");
+          baseUri.searchParams.set("type", "ws");
+          baseUri.searchParams.set("host", APP_DOMAIN);
+          
           for (const prx of prxList) {
             if (configCount >= filterLimit) break;
             
-            const uri = new URL(`${PROTOCOL_HORSE}://${fillerDomain}`);
-            uri.searchParams.set("encryption", "none");
-            uri.searchParams.set("type", "ws");
-            uri.searchParams.set("host", APP_DOMAIN);
+            // Reuse path for this proxy
+            const proxyPath = `/${prx.prxIP}-${prx.prxPort}`;
 
             for (const port of filterPort) {
               if (configCount >= filterLimit) break;
               
+              // Pre-compute port-dependent values
+              const isTLS = port === 443;
+              const security = isTLS ? "tls" : "none";
+              const tlsLabel = isTLS ? "TLS" : "NTLS";
+              
               for (const protocol of filterVPN) {
                 if (configCount >= filterLimit) break;
 
-                uri.protocol = protocol;
-                uri.port = port.toString();
+                // Modify existing URL object instead of creating new one
+                baseUri.protocol = protocol;
+                baseUri.port = port.toString();
+                baseUri.searchParams.set("security", security);
+                baseUri.searchParams.set("path", proxyPath);
                 
-                if (protocol == "ss") {
-                  uri.username = btoa(`none:${uuid}`);
-                  uri.searchParams.set(
+                if (protocol === "ss") {
+                  baseUri.username = btoa(`none:${uuid}`);
+                  baseUri.searchParams.set(
                     "plugin",
-                    `${PROTOCOL_V2}-plugin${port == 80 ? "" : ";tls"};mux=0;mode=websocket;path=/${prx.prxIP}-${
-                      prx.prxPort
-                    };host=${APP_DOMAIN}`
+                    `${PROTOCOL_V2}-plugin${isTLS ? ";tls" : ""};mux=0;mode=websocket;path=${proxyPath};host=${APP_DOMAIN}`
                   );
                 } else {
-                  uri.username = uuid;
+                  baseUri.username = uuid;
+                  baseUri.searchParams.delete("plugin");
                 }
 
-                uri.searchParams.set("security", port == 443 ? "tls" : "none");
-                uri.searchParams.set("sni", port == 80 && protocol == PROTOCOL_FLASH ? "" : APP_DOMAIN);
-                uri.searchParams.set("path", `/${prx.prxIP}-${prx.prxPort}`);
-
-                uri.hash = `${configCount + 1} ${getFlagEmoji(prx.country)} ${prx.org} WS ${
-                  port == 443 ? "TLS" : "NTLS"
-                } [${serviceName}]`;
+                baseUri.searchParams.set("sni", (port === 80 && protocol === PROTOCOL_FLASH) ? "" : APP_DOMAIN);
+                baseUri.hash = `${configCount + 1} ${getFlagEmoji(prx.country)} ${prx.org} WS ${tlsLabel} [${serviceName}]`;
                 
-                result.push(uri.toString());
+                // Clone URL string (not the object)
+                result.push(baseUri.toString());
                 configCount++;
               }
             }
@@ -332,11 +340,11 @@ export default {
           switch (filterFormat) {
             case "raw":
               finalResult = result.join("\n");
-              responseHeaders["Cache-Control"] = "public, max-age=1800";
+              responseHeaders["Cache-Control"] = "public, max-age=1800, s-maxage=3600";
               break;
             case PROTOCOL_V2:
               finalResult = btoa(result.join("\n"));
-              responseHeaders["Cache-Control"] = "public, max-age=1800";
+              responseHeaders["Cache-Control"] = "public, max-age=1800, s-maxage=3600";
               break;
             case PROTOCOL_NEKO:
             case "sfa":
@@ -364,7 +372,7 @@ export default {
 
               if (res.status == 200) {
                 finalResult = await res.text();
-                responseHeaders["Cache-Control"] = "public, max-age=1800";
+                responseHeaders["Cache-Control"] = "public, max-age=1800, s-maxage=3600";
               } else {
                 return new Response(res.statusText, {
                   status: res.status,
@@ -391,6 +399,7 @@ export default {
             {
               headers: {
                 ...CORS_HEADER_OPTIONS,
+                "Content-Type": "application/json",
                 "Cache-Control": "private, max-age=60",
               },
             }
