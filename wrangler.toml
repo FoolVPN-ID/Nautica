@@ -10,8 +10,7 @@ routes = [
   { pattern = "api24-normal.tiktokv.com.hoshiyomi.qzz.io", custom_domain = true }
 ]
 
-[unsafe.metadata.observability]
-enabled = false
-
+# Enable logs temporarily for debugging
 [observability.logs]
-enabled = false
+enabled = true
+invocation_logs = true
