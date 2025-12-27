@@ -1,10 +1,17 @@
-name = "nautica"
+name = "last-rite"
 main = "_worker.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat_v2"]
 
+# Custom domains
+routes = [
+  { pattern = "hoshiyomi.qzz.io", custom_domain = true },
+  { pattern = "belajar.ruangguru.com.hoshiyomi.qzz.io", custom_domain = true },
+  { pattern = "api24-normal.tiktokv.com.hoshiyomi.qzz.io", custom_domain = true }
+]
+
 [unsafe.metadata.observability]
-enabled = true
+enabled = false
 
 [observability.logs]
-enabled = true
+enabled = false
