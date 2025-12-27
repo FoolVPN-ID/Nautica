@@ -26,6 +26,10 @@ const PROTOCOL_V2 = atob(v2);
 const PROTOCOL_NEKO = atob(neko);
 const UUID_V4_REGEX = /^[0-9a-f]{8}[0-9a-f]{4}4[0-9a-f]{3}[89ab][0-9a-f]{3}[0-9a-f]{12}$/i;
 
+// OPTIMIZATION 5: Pre-compute TextEncoder for UDP relay
+const TEXT_ENCODER = new TextEncoder();
+const TEXT_DECODER = new TextDecoder();
+
 const PORTS = [443, 80];
 const PROTOCOLS = [PROTOCOL_HORSE, PROTOCOL_FLASH, "ss"];
 const SUB_PAGE_URL = "https://foolvpn.web.id/nautica";
@@ -638,7 +642,7 @@ async function handleUDPOutbound(targetAddress, targetPort, dataChunk, webSocket
         });
 
         const header = `udp:${targetAddress}:${targetPort}`;
-        const headerBuffer = new TextEncoder().encode(header);
+        const headerBuffer = TEXT_ENCODER.encode(header);
         const separator = new Uint8Array([0x7c]);
         const relayMessage = new Uint8Array(headerBuffer.length + separator.length + dataChunk.byteLength);
         relayMessage.set(headerBuffer, 0);
@@ -747,7 +751,7 @@ function readSsHeader(ssBuffer) {
     case 3:
       addressLength = new Uint8Array(ssBuffer.slice(addressValueIndex, addressValueIndex + 1))[0];
       addressValueIndex += 1;
-      addressValue = new TextDecoder().decode(ssBuffer.slice(addressValueIndex, addressValueIndex + addressLength));
+      addressValue = TEXT_DECODER.decode(ssBuffer.slice(addressValueIndex, addressValueIndex + addressLength));
       break;
     case 4:
       addressLength = 16;
@@ -822,7 +826,7 @@ function readFlashHeader(buffer) {
     case 2:
       addressLength = new Uint8Array(buffer.slice(addressValueIndex, addressValueIndex + 1))[0];
       addressValueIndex += 1;
-      addressValue = new TextDecoder().decode(buffer.slice(addressValueIndex, addressValueIndex + addressLength));
+      addressValue = TEXT_DECODER.decode(buffer.slice(addressValueIndex, addressValueIndex + addressLength));
       break;
     case 3:
       addressLength = 16;
@@ -888,7 +892,7 @@ function readHorseHeader(buffer) {
     case 3:
       addressLength = new Uint8Array(dataBuffer.slice(addressValueIndex, addressValueIndex + 1))[0];
       addressValueIndex += 1;
-      addressValue = new TextDecoder().decode(dataBuffer.slice(addressValueIndex, addressValueIndex + addressLength));
+      addressValue = TEXT_DECODER.decode(dataBuffer.slice(addressValueIndex, addressValueIndex + addressLength));
       break;
     case 4:
       addressLength = 16;
