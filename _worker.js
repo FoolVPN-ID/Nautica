@@ -1,8 +1,8 @@
 import { connect } from "cloudflare:sockets";
 
 // Variables
-let serviceName = "";
-let APP_DOMAIN = "";
+let serviceName = "radmonvpn.workers.dev";
+let APP_DOMAIN = "sabarvpn.radmonvpn";
 
 let prxIP = "";
 let cachedPrxList = [];
