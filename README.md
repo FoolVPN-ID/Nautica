@@ -9,7 +9,8 @@ Sebuah repository serverless tunnel studi kasus Indonesia
 
 # Fitur
 
-- [x] Otomatis split protocol VLESS, Trojan, dan Shadowsocks
+- [x] Otomatis split protocol VLESS, Trojan, Shadowsocks, dan VMess
+- [x] Support VMess AEAD (kompatibel dengan V2Ray)
 - [x] Reverse proxy
 - [x] Cache daftar proxy
 - [x] Support TCP dan DoH
@@ -27,7 +28,7 @@ Sebuah repository serverless tunnel studi kasus Indonesia
   - [x] Country Code `&cc=ID,SG,JP,KR,...`
   - [x] Format `&format=clash` (raw, clash, sfa, bfr, v2ray)
   - [x] Limit `&limit=10`
-  - [x] VPN `&vpn=vless,trojan,ss`
+  - [x] VPN `&vpn=vless,trojan,ss,vmess`
   - [x] Port `&port=443,80`
   - [x] Domain `&domain=zoom.us`
 - [x] Tombol `Deploy to workers` untuk instant deployment
@@ -45,6 +46,12 @@ Kode ini masih perlu banyak perbaikan, jadi silahkan berkontribusi dan berikan P
 - Gunakan security `none`
 - Gunakan DoH di aplikasi VPN kalian jika tidak bisa browsing atau membuka website
   - Contoh DoH `https://8.8.8.8/dns-query`
+- **VMess Protocol:**
+  - Mendukung VMess AEAD sesuai spesifikasi V2Ray
+  - Enkripsi menggunakan AES-128-GCM
+  - UUID default untuk testing: `00000000-0000-0000-0000-000000000000`
+  - AlterID harus `0` (AEAD mode)
+  - Security: `zero`
 
 # Cara Deploy
 

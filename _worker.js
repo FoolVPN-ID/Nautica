@@ -10,11 +10,11 @@ let cachedPrxList = [];
 // Constant
 const horse = "dHJvamFu";
 const flash = "dm1lc3M=";
+const neko = "dmxlc3M=";
 const v2 = "djJyYXk=";
-const neko = "Y2xhc2g=";
 
 const PORTS = [443, 80];
-const PROTOCOLS = [atob(horse), atob(flash), "ss"];
+const PROTOCOLS = [atob(horse), atob(flash), atob(neko), "ss"];
 const SUB_PAGE_URL = "https://foolvpn.web.id/nautica";
 const KV_PRX_URL = "https://raw.githubusercontent.com/FoolVPN-ID/Nautica/refs/heads/main/kvProxyList.json";
 const PRX_BANK_URL = "https://raw.githubusercontent.com/FoolVPN-ID/Nautica/refs/heads/main/proxyList.txt";
@@ -33,6 +33,16 @@ const CORS_HEADER_OPTIONS = {
   "Access-Control-Allow-Methods": "GET,HEAD,POST,OPTIONS",
   "Access-Control-Max-Age": "86400",
 };
+
+// Encrypted Stream Constants (Base64 Encoded)
+const SALT_A1 = atob("Vk1lc3MgSGVhZGVyIEFFQUQgS2V5X0xlbmd0aA==");
+const SALT_A2 = atob("Vk1lc3MgSGVhZGVyIEFFQUQgTm9uY2VfTGVuZ3Ro");
+const SALT_A3 = atob("Vk1lc3MgSGVhZGVyIEFFQUQgS2V5");
+const SALT_A4 = atob("Vk1lc3MgSGVhZGVyIEFFQUQgTm9uY2U=");
+const SALT_B1 = atob("QUVBRCBSZXNwIEhlYWRlciBMZW4gS2V5");
+const SALT_B2 = atob("QUVBRCBSZXNwIEhlYWRlciBMZW4gSVY=");
+const SALT_B3 = atob("QUVBRCBSZXNwIEhlYWRlciBLZXk=");
+const SALT_B4 = atob("QUVBRCBSZXNwIEhlYWRlciBJVg==");
 
 async function getKVPrxList(kvPrxUrl = KV_PRX_URL) {
   if (!kvPrxUrl) {
@@ -190,7 +200,7 @@ export default {
                     "plugin",
                     `${atob(v2)}-plugin${port == 80 ? "" : ";tls"};mux=0;mode=websocket;path=/${prx.prxIP}-${
                       prx.prxPort
-                    };host=${APP_DOMAIN}`
+                    };host=${APP_DOMAIN}`,
                   );
                 } else {
                   uri.username = uuid;
@@ -260,7 +270,7 @@ export default {
               headers: {
                 ...CORS_HEADER_OPTIONS,
               },
-            }
+            },
           );
         }
       }
@@ -310,7 +320,7 @@ async function websocketHandler(request) {
               webSocket,
               null,
               log,
-              RELAY_SERVER_UDP
+              RELAY_SERVER_UDP,
             );
           }
           if (remoteSocketWrapper.value) {
@@ -326,7 +336,9 @@ async function websocketHandler(request) {
           if (protocol === atob(horse)) {
             protocolHeader = readHorseHeader(chunk);
           } else if (protocol === atob(flash)) {
-            protocolHeader = readFlashHeader(chunk);
+            protocolHeader = await readStreamHeader(chunk);
+          } else if (protocol === atob(neko)) {
+            protocolHeader = readNekoHeader(chunk);
           } else if (protocol === "ss") {
             protocolHeader = readSsHeader(chunk);
           } else {
@@ -340,6 +352,16 @@ async function websocketHandler(request) {
             throw new Error(protocolHeader.message);
           }
 
+          // Generate stream response header if needed
+          let responseHeader = protocolHeader.version;
+          if (protocol === atob(flash) && protocolHeader.needsResponse) {
+            responseHeader = await generateStreamResponseHeader(
+              protocolHeader.responseOptions,
+              protocolHeader.encKey,
+              protocolHeader.encIv,
+            );
+          }
+
           if (protocolHeader.isUDP) {
             if (protocolHeader.portRemote === 53) {
               isDNS = true;
@@ -348,9 +370,9 @@ async function websocketHandler(request) {
                 DNS_SERVER_PORT,
                 chunk,
                 webSocket,
-                protocolHeader.version,
+                responseHeader,
                 log,
-                RELAY_SERVER_UDP
+                RELAY_SERVER_UDP,
               );
             }
 
@@ -359,9 +381,9 @@ async function websocketHandler(request) {
               protocolHeader.portRemote,
               chunk,
               webSocket,
-              protocolHeader.version,
+              responseHeader,
               log,
-              RELAY_SERVER_UDP
+              RELAY_SERVER_UDP,
             );
           }
 
@@ -371,8 +393,8 @@ async function websocketHandler(request) {
             protocolHeader.portRemote,
             protocolHeader.rawClientData,
             webSocket,
-            protocolHeader.version,
-            log
+            responseHeader,
+            log,
           );
         },
         close() {
@@ -381,7 +403,7 @@ async function websocketHandler(request) {
         abort(reason) {
           log(`readableWebSocketStream is abort`, JSON.stringify(reason));
         },
-      })
+      }),
     )
     .catch((err) => {
       log("readableWebSocketStream pipeTo error", err);
@@ -405,13 +427,78 @@ async function protocolSniffer(buffer) {
     }
   }
 
-  const flashDelimiter = new Uint8Array(buffer.slice(1, 17));
-  // Hanya mendukung UUID v4
-  if (arrayBufferToHex(flashDelimiter).match(/^[0-9a-f]{8}[0-9a-f]{4}4[0-9a-f]{3}[89ab][0-9a-f]{3}[0-9a-f]{12}$/i)) {
+  // Light protocol detection (VLESS) - check UUID v4 pattern
+  if (buffer.byteLength >= 18) {
+    const version = new Uint8Array(buffer.slice(0, 1))[0];
+    if (version === 0) {
+      const protocolUuid = new Uint8Array(buffer.slice(1, 17));
+      // Hanya mendukung UUID v4
+      if (arrayBufferToHex(protocolUuid).match(/^[0-9a-f]{8}[0-9a-f]{4}4[0-9a-f]{3}[89ab][0-9a-f]{3}[0-9a-f]{12}$/i)) {
+        return atob(neko);
+      }
+    }
+  }
+
+  // VMess AEAD detection: minimum 42 bytes (authId 16 + encLen 18 + nonce 8)
+  // But we need to be more selective - check if it's NOT shadowsocks first
+  if (buffer.byteLength >= 42) {
+    // Shadowsocks ATYP is always 1, 3, or 4 at first byte
+    const firstByte = new Uint8Array(buffer.slice(0, 1))[0];
+
+    // If first byte looks like SS address type, it's probably SS
+    if (firstByte === 0x01 || firstByte === 0x03 || firstByte === 0x04) {
+      // Likely Shadowsocks, not VMess
+      return "ss";
+    }
+
+    // Otherwise, assume it's VMess AEAD
     return atob(flash);
   }
 
   return "ss"; // default
+}
+
+async function generateStreamResponseHeader(responseOptions, encKey, encIv) {
+  try {
+    // Hash the key and IV from request header - NOTE: swapped compared to variable names!
+    // In Rust: key = SHA256(key)[..16], iv = SHA256(iv)[..16]
+    // Then use these for KDF base
+    const key = (await sha256(encKey)).slice(0, 16);
+    const iv = (await sha256(encIv)).slice(0, 16);
+
+    // Encrypt length (2 bytes for value 4)
+    const lengthKey = (await kdf(key, [SALT_B1])).slice(0, 16);
+    const lengthIv = (await kdf(iv, [SALT_B2])).slice(0, 12);
+
+    const lengthData = new Uint8Array(2);
+    lengthData[0] = 0;
+    lengthData[1] = 4;
+
+    const encryptedLength = await aesGcmEncrypt(lengthKey, lengthIv, lengthData, new Uint8Array(0));
+
+    // Create header payload (4 bytes)
+    const headerPayload = new Uint8Array([
+      responseOptions[0], // options[0] from request
+      0x00,
+      0x00,
+      0x00, // padding
+    ]);
+
+    const payloadKey = (await kdf(key, [SALT_B3])).slice(0, 16);
+    const payloadIv = (await kdf(iv, [SALT_B4])).slice(0, 12);
+
+    const encryptedPayload = await aesGcmEncrypt(payloadKey, payloadIv, headerPayload, new Uint8Array(0));
+
+    // Combine length + payload
+    const response = new Uint8Array(encryptedLength.length + encryptedPayload.length);
+    response.set(encryptedLength, 0);
+    response.set(encryptedPayload, encryptedLength.length);
+
+    return response;
+  } catch (e) {
+    console.error("Failed to generate stream response:", e);
+    return new Uint8Array(0);
+  }
 }
 
 async function handleTCPOutBound(
@@ -421,7 +508,7 @@ async function handleTCPOutBound(
   rawClientData,
   webSocket,
   responseHeader,
-  log
+  log,
 ) {
   async function connectAndWrite(address, port) {
     const tcpSocket = connect({
@@ -440,7 +527,7 @@ async function handleTCPOutBound(
   async function retry() {
     const tcpSocket = await connectAndWrite(
       prxIP.split(/[:=-]/)[0] || addressRemote,
-      prxIP.split(/[:=-]/)[1] || portRemote
+      prxIP.split(/[:=-]/)[1] || portRemote,
     );
     tcpSocket.closed
       .catch((error) => {
@@ -496,7 +583,7 @@ async function handleUDPOutbound(targetAddress, targetPort, dataChunk, webSocket
         abort(reason) {
           console.error(`UDP connection aborted due to ${reason}`);
         },
-      })
+      }),
     );
   } catch (e) {
     console.error(`Error while handling UDP outbound: ${e.message}`);
@@ -545,6 +632,245 @@ function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
   });
 
   return stream;
+}
+
+// Crypto Helper Functions
+async function md5(...inputs) {
+  const combined = new Uint8Array(inputs.reduce((acc, input) => acc + input.length, 0));
+  let offset = 0;
+  for (const input of inputs) {
+    combined.set(new Uint8Array(input), offset);
+    offset += input.length;
+  }
+  const hashBuffer = await crypto.subtle.digest("MD5", combined);
+  return new Uint8Array(hashBuffer);
+}
+
+async function sha256(input) {
+  const hashBuffer = await crypto.subtle.digest("SHA-256", input);
+  return new Uint8Array(hashBuffer);
+}
+
+async function kdf(key, path) {
+  // VMess KDF uses custom recursive HMAC
+  // Reference: https://github.com/v2ray/v2ray-core/blob/master/common/crypto/auth.go
+
+  // Create HMAC-SHA256
+  async function hmacSha256(key, data) {
+    const hmacKey = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const signature = await crypto.subtle.sign("HMAC", hmacKey, data);
+    return new Uint8Array(signature);
+  }
+
+  // RecursiveHash implementation matching Rust code
+  async function recursiveHash(keyBytes, innerHashFn) {
+    return async (data) => {
+      // Prepare HMAC pads
+      const ipad = new Uint8Array(64);
+      const opad = new Uint8Array(64);
+
+      // Copy key into pads
+      ipad.set(keyBytes.slice(0, Math.min(64, keyBytes.length)));
+      opad.set(keyBytes.slice(0, Math.min(64, keyBytes.length)));
+
+      // XOR with HMAC constants
+      for (let i = 0; i < 64; i++) {
+        ipad[i] ^= 0x36;
+        opad[i] ^= 0x5c;
+      }
+
+      // Compute inner hash: H(ipad || data)
+      const innerData = new Uint8Array(ipad.length + data.length);
+      innerData.set(ipad);
+      innerData.set(data, ipad.length);
+      const innerResult = await innerHashFn(innerData);
+
+      // Compute outer hash: H(opad || innerResult)
+      const outerData = new Uint8Array(opad.length + innerResult.length);
+      outerData.set(opad);
+      outerData.set(innerResult, opad.length);
+      return await innerHashFn(outerData);
+    };
+  }
+
+  // Base SHA256 hash function
+  const sha256Hash = async (data) => {
+    return new Uint8Array(await crypto.subtle.digest("SHA-256", data));
+  };
+
+  // Build recursive hash chain
+  let currentHashFn = await recursiveHash(new TextEncoder().encode("VMess AEAD KDF"), sha256Hash);
+
+  for (const salt of path) {
+    const saltBytes = typeof salt === "string" ? new TextEncoder().encode(salt) : new Uint8Array(salt);
+    currentHashFn = await recursiveHash(saltBytes, currentHashFn);
+  }
+
+  // Final hash with key
+  return await currentHashFn(key);
+}
+
+async function aesGcmDecrypt(key, nonce, data, aad) {
+  const cryptoKey = await crypto.subtle.importKey("raw", key, { name: "AES-GCM" }, false, ["decrypt"]);
+
+  try {
+    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: nonce, additionalData: aad }, cryptoKey, data);
+    return new Uint8Array(decrypted);
+  } catch (e) {
+    throw new Error("AEAD decryption failed: " + e.message);
+  }
+}
+
+async function aesGcmEncrypt(key, nonce, data, aad) {
+  const cryptoKey = await crypto.subtle.importKey("raw", key, { name: "AES-GCM" }, false, ["encrypt"]);
+
+  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce, additionalData: aad }, cryptoKey, data);
+  return new Uint8Array(encrypted);
+}
+
+// Stream Protocol Handler
+async function readStreamHeader(buffer) {
+  try {
+    // For simplicity, we'll use a fixed UUID for decryption
+    // In production, this should be configured
+    const uuidString = "00000000-0000-0000-0000-000000000000";
+    const uuidBytes = new Uint8Array(
+      uuidString
+        .replace(/-/g, "")
+        .match(/.{1,2}/g)
+        .map((byte) => parseInt(byte, 16)),
+    );
+
+    // Create MD5 hash of UUID + constant
+    const authKey = await md5(
+      uuidBytes,
+      new TextEncoder().encode(atob("YzQ4NjE5ZmUtOGYwMi00OWUwLWI5ZTktZWRmNzYzZTE3ZTIx")),
+    );
+
+    // Read AEAD header structure
+    const authId = new Uint8Array(buffer.slice(0, 16));
+    const encryptedLength = new Uint8Array(buffer.slice(16, 34));
+    const nonce = new Uint8Array(buffer.slice(34, 42));
+
+    // Derive keys for length decryption
+    const lengthKey = (await kdf(authKey, [SALT_A1, authId, nonce])).slice(0, 16);
+
+    const lengthIv = (await kdf(authKey, [SALT_A2, authId, nonce])).slice(0, 12);
+
+    // Decrypt header length (AAD is authId)
+    const lengthBytes = await aesGcmDecrypt(lengthKey, lengthIv, encryptedLength, authId);
+    const headerLength = (lengthBytes[0] << 8) | lengthBytes[1];
+
+    // Read encrypted header payload (with 16 bytes GCM tag)
+    const encryptedHeader = new Uint8Array(buffer.slice(42, 42 + headerLength + 16));
+
+    // Derive keys for payload decryption
+    const payloadKey = (await kdf(authKey, [SALT_A3, authId, nonce])).slice(0, 16);
+
+    const payloadIv = (await kdf(authKey, [SALT_A4, authId, nonce])).slice(0, 12);
+
+    // Decrypt header payload (AAD is authId)
+    const headerPayload = await aesGcmDecrypt(payloadKey, payloadIv, encryptedHeader, authId);
+
+    // Debug logging
+    console.log("Header payload length:", headerPayload.length);
+    console.log("Header payload (hex):", arrayBufferToHex(headerPayload.buffer));
+
+    // Parse decrypted header - following exact Rust implementation order
+    const view = new DataView(headerPayload.buffer);
+    let offset = 0;
+
+    // Version (1 byte)
+    const version = view.getUint8(offset);
+    offset += 1;
+    console.log("[0] Version:", version, "| offset now:", offset);
+    if (version !== 1) {
+      return { hasError: true, message: `Invalid protocol version: ${version}` };
+    }
+
+    // IV (16 bytes)
+    const encIv = new Uint8Array(headerPayload.slice(offset, offset + 16));
+    offset += 16;
+    console.log("[1-16] IV read | offset now:", offset);
+
+    // Key (16 bytes)
+    const encKey = new Uint8Array(headerPayload.slice(offset, offset + 16));
+    offset += 16;
+    console.log("[17-32] Key read | offset now:", offset);
+
+    // Options (4 bytes total - Rust reads as array)
+    const options = new Uint8Array(headerPayload.slice(offset, offset + 4));
+    offset += 4;
+    console.log("[33-36] Options:", Array.from(options), "| offset now:", offset);
+
+    // Command (1 byte)
+    const cmd = view.getUint8(offset);
+    offset += 1;
+    console.log("[37] Command:", cmd, "| offset now:", offset);
+    const isUDP = cmd !== 0x01;
+
+    // Port (2 bytes, big-endian)
+    const portRemote = view.getUint16(offset, false);
+    offset += 2;
+    console.log("[38-39] Port:", portRemote, "| offset now:", offset);
+
+    // Address Type (1 byte)
+    const addressType = view.getUint8(offset);
+    offset += 1;
+    console.log("[40] Address type:", addressType, "| offset now:", offset);
+    let addressRemote = "";
+
+    // Parse address following Rust implementation
+    switch (addressType) {
+      case 1: // IPv4
+        addressRemote = `${view.getUint8(offset)}.${view.getUint8(offset + 1)}.${view.getUint8(offset + 2)}.${view.getUint8(offset + 3)}`;
+        offset += 4;
+        break;
+      case 2: // Domain (same as case 3 in Rust)
+      case 3: // Domain
+        const domainLength = view.getUint8(offset);
+        offset += 1;
+        addressRemote = new TextDecoder().decode(headerPayload.slice(offset, offset + domainLength));
+        offset += domainLength;
+        break;
+      case 4: // IPv6
+        const ipv6Parts = [];
+        for (let i = 0; i < 8; i++) {
+          ipv6Parts.push(view.getUint16(offset + i * 2, false).toString(16));
+        }
+        addressRemote = ipv6Parts.join(":");
+        offset += 16;
+        break;
+      default:
+        console.log("ERROR: Invalid address type:", addressType, "at offset:", offset - 1);
+        return { hasError: true, message: `Invalid address type: ${addressType} (hex: 0x${addressType.toString(16)})` };
+    }
+
+    console.log("Final parsed address:", addressRemote);
+
+    // Calculate raw data index: authId (16) + encryptedLength (18) + nonce (8) + encrypted header payload (headerLength + 16 GCM tag)
+    const rawDataIndex = 42 + headerLength + 16;
+
+    return {
+      hasError: false,
+      addressRemote,
+      addressType,
+      portRemote,
+      rawDataIndex,
+      rawClientData: buffer.slice(rawDataIndex),
+      version: new Uint8Array([options[0], 0]),
+      isUDP,
+      needsResponse: true,
+      responseOptions: options,
+      encKey: encKey,
+      encIv: encIv,
+    };
+  } catch (e) {
+    return {
+      hasError: true,
+      message: "Stream header parsing failed: " + e.message,
+    };
+  }
 }
 
 function readSsHeader(ssBuffer) {
@@ -603,7 +929,7 @@ function readSsHeader(ssBuffer) {
   };
 }
 
-function readFlashHeader(buffer) {
+function readNekoHeader(buffer) {
   const version = new Uint8Array(buffer.slice(0, 1));
   let isUDP = false;
 
@@ -769,7 +1095,7 @@ async function remoteSocketToWS(remoteSocket, webSocket, responseHeader, retry, 
         abort(reason) {
           console.error(`remoteConnection!.readable abort`, reason);
         },
-      })
+      }),
     )
     .catch((error) => {
       console.error(`remoteSocketToWS has exception `, error.stack || error);
