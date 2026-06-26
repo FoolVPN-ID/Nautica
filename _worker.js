@@ -1,8 +1,8 @@
 import { connect } from "cloudflare:sockets";
 
 // Variables
-let serviceName = "";
-let APP_DOMAIN = "";
+let serviceName = "menit.int.eu.org";
+let APP_DOMAIN = "torovip";
 
 let prxIP = "";
 let cachedPrxList = [];
