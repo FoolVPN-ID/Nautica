@@ -49,7 +49,7 @@ async function getKVPrxList(kvPrxUrl = KV_PRX_URL) {
     throw new Error("No URL Provided!");
   }
 
-  const kvPrx = await fetch(kvPrxUrl);
+  const kvPrx = await fetch(kvPrxUrl, { signal: AbortSignal.timeout(10000) });
   if (kvPrx.status == 200) {
     return await kvPrx.json();
   } else {
