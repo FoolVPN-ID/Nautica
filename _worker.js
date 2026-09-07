@@ -165,7 +165,7 @@ export default {
           const filterFormat = url.searchParams.get("format") || "raw";
           const fillerDomain = url.searchParams.get("domain") || APP_DOMAIN;
 
-          const prxBankUrl = url.searchParams.get("prx-list") || env.PRX_BANK_URL;
+          const prxBankUrl = env.PRX_BANK_URL;
           const prxList = await getPrxList(prxBankUrl)
             .then((prxs) => {
               // Filter CC
